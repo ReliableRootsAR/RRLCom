@@ -50,13 +50,13 @@ def plot_tickets_on_map(tickets):
             st.warning("Skipping ticket with invalid coordinates.")
     return m
 
-def search_tickets(tickets, start_date, end_date, contractor):
-    """Filter tickets by date range and contractor."""
-    if "Work To Begin Date" in tickets.columns:
+def search_tickets(tickets, date_column, start_date, end_date, contractor):
+    """Filter tickets based on the date column and contractor."""
+    if date_column in tickets.columns:
         if start_date and end_date:
             tickets = tickets[
-                (pd.to_datetime(tickets["Work To Begin Date"]) >= start_date) &
-                (pd.to_datetime(tickets["Work To Begin Date"]) <= end_date)
+                (pd.to_datetime(tickets[date_column]) >= start_date) &
+                (pd.to_datetime(tickets[date_column]) <= end_date)
             ]
     if contractor:
         tickets = tickets[tickets["Excavator"].str.contains(contractor, case=False, na=False)]
@@ -72,7 +72,7 @@ def admin_dashboard():
         end_date = st.date_input("End Date")
         contractor = st.text_input("Contractor Name")
 
-        filtered_open_tickets = search_tickets(open_tickets, start_date, end_date, contractor)
+        filtered_open_tickets = search_tickets(open_tickets, "Work to Begin Date", start_date, end_date, contractor)
         st.subheader(f"Total Open Tickets: {len(filtered_open_tickets)}")
 
         subtabs = st.tabs(["List View", "Map View"])
@@ -89,7 +89,7 @@ def admin_dashboard():
         end_date = st.date_input("End Date", key="closed_end")
         contractor = st.text_input("Contractor Name", key="closed_contractor")
 
-        filtered_closed_tickets = search_tickets(closed_tickets, start_date, end_date, contractor)
+        filtered_closed_tickets = search_tickets(closed_tickets, "Date Completed", start_date, end_date, contractor)
         st.subheader(f"Total Closed Tickets: {len(filtered_closed_tickets)}")
 
         subtabs = st.tabs(["List View", "Map View"])
@@ -112,7 +112,7 @@ def locator_dashboard(username):
         contractor = st.text_input("Contractor Name")
 
         locator_open_tickets = open_tickets[open_tickets["Assigned Name"] == username]
-        filtered_open_tickets = search_tickets(locator_open_tickets, start_date, end_date, contractor)
+        filtered_open_tickets = search_tickets(locator_open_tickets, "Work to Begin Date", start_date, end_date, contractor)
         st.subheader(f"Total Open Tickets: {len(filtered_open_tickets)}")
 
         subtabs = st.tabs(["List View", "Map View"])
@@ -130,7 +130,7 @@ def locator_dashboard(username):
         contractor = st.text_input("Contractor Name", key="locator_closed_contractor")
 
         locator_closed_tickets = closed_tickets[closed_tickets["Completed By"] == username]
-        filtered_closed_tickets = search_tickets(locator_closed_tickets, start_date, end_date, contractor)
+        filtered_closed_tickets = search_tickets(locator_closed_tickets, "Date Completed", start_date, end_date, contractor)
         st.subheader(f"Total Closed Tickets: {len(filtered_closed_tickets)}")
 
         subtabs = st.tabs(["List View", "Map View"])
@@ -141,12 +141,6 @@ def locator_dashboard(username):
         with subtabs[1]:
             closed_map = plot_tickets_on_map(filtered_closed_tickets)
             folium_static(closed_map, width=800, height=400)
-
-def contractor_dashboard(username):
-    contractor_tickets = open_tickets[open_tickets["Excavator"] == username]
-    st.title(f"Contractor Dashboard - {username}")
-    st.subheader(f"Total Tickets: {len(contractor_tickets)}")
-    st.dataframe(contractor_tickets)
 
 def logout():
     st.session_state.clear()
