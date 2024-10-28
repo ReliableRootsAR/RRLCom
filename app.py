@@ -11,55 +11,48 @@ sheet_url = "https://docs.google.com/spreadsheets/d/1a1YSAMCFsUJn-PBSKlcIiKgGjvZ
 def load_data():
     """Load the ticket data from the Google Sheet."""
     try:
-        data = pd.read_csv(sheet_url, dtype={"RequestNum": str})  # Ensure ticket numbers are strings
-        st.write("### Data Preview")
-        st.write(data.head())  # Show the first few rows for verification
-        st.write("### Column Names")
-        st.write(data.columns)  # Display column names for debugging
+        data = pd.read_csv(sheet_url, dtype={"RequestNum": str})  # Ensure RequestNum is a string
         return data
     except Exception as e:
         st.error(f"Error loading data: {e}")
-        return pd.DataFrame()  # Return an empty DataFrame if loading fails
+        return pd.DataFrame()
 
-# Load the data from the Google Sheet
+# Load the data
 data = load_data()
-
-# Function to search for ticket details by ticket number
-def get_ticket_details(ticket_number):
-    """Retrieve ticket details based on RequestNum."""
-    try:
-        ticket_number = ticket_number.strip()  # Clean up any spaces
-        ticket = data[data["RequestNum"] == ticket_number]  # Use the correct column name
-        if ticket.empty:
-            return None
-        return ticket.iloc[0].to_dict()
-    except Exception as e:
-        st.error(f"Error retrieving ticket details: {e}")
-        return None
 
 # Function to plot tickets on a map
 def plot_map(tickets):
-    """Create a map with markers for active tickets."""
-    try:
-        map_center = [38.9717, -95.2353]  # Default: Lawrence, KS
-        m = folium.Map(location=map_center, zoom_start=12)
+    """Create an interactive map with markers for tickets."""
+    map_center = [38.9717, -95.2353]  # Default map center (Lawrence, KS)
+    m = folium.Map(location=map_center, zoom_start=12)
 
-        for _, ticket in tickets.iterrows():
-            try:
-                latitude = float(ticket["Latitude"])
-                longitude = float(ticket["Longitude"])
-                folium.Marker(
-                    location=[latitude, longitude],
-                    popup=f'Ticket: {ticket["RequestNum"]}',
-                    tooltip=ticket["Description"],
-                ).add_to(m)
-            except (ValueError, KeyError) as e:
-                st.warning(f"Skipping ticket due to invalid coordinates or data: {e}")
+    for _, ticket in tickets.iterrows():
+        try:
+            latitude = float(ticket["Latitude"])
+            longitude = float(ticket["Longitude"])
+            popup_content = (
+                f"<b>RequestNum:</b> {ticket['RequestNum']}<br>"
+                f"<b>Description:</b> {ticket['Description']}<br>"
+                f"<b>Status:</b> {ticket['Status']}"
+            )
+            folium.Marker(
+                location=[latitude, longitude],
+                popup=popup_content,
+                tooltip=f"Ticket: {ticket['RequestNum']}"
+            ).add_to(m)
+        except (ValueError, KeyError) as e:
+            st.warning(f"Skipping ticket due to invalid coordinates or data: {e}")
 
-        return m
-    except Exception as e:
-        st.error(f"Error creating the map: {e}")
-        return None
+    return m
+
+# Function to display the message input and reply section
+def message_section(request_num):
+    """Message system for sending and replying to messages."""
+    st.subheader(f"Messages for Ticket: {request_num}")
+    message = st.text_area("Enter your message:")
+    if st.button("Send Message"):
+        # For now, just simulate sending a message (can store messages later)
+        st.success(f"Message sent for Ticket {request_num}: {message}")
 
 # Streamlit App UI
 st.title("RRLCom - Ticket Management System")
@@ -68,34 +61,51 @@ st.title("RRLCom - Ticket Management System")
 st.sidebar.title("Navigation")
 menu_option = st.sidebar.selectbox(
     "Select an option:",
-    ["Search Ticket", "Active Tickets Map"]
+    ["List View", "Split View", "Search Ticket"]
 )
 
-if menu_option == "Search Ticket":
+if menu_option == "List View":
+    # List View of All Tickets
+    st.header("All Tickets")
+    st.dataframe(data)  # Display all tickets in a table-like view
+
+elif menu_option == "Split View":
+    # Split View: List View on Top, Map Below
+    st.header("Tickets Overview (List and Map)")
+
+    # Create two columns: one for list view, one for the map
+    top, bottom = st.columns([1, 2])
+
+    # List view in the top section
+    with top:
+        selected_ticket = st.selectbox("Select a Ticket:", data["RequestNum"])
+        ticket_details = data[data["RequestNum"] == selected_ticket].iloc[0]
+        st.write(f"### Ticket Details for {selected_ticket}")
+        for key, value in ticket_details.items():
+            st.write(f"**{key}:** {value}")
+
+        # Display message section
+        message_section(selected_ticket)
+
+    # Map view in the bottom section
+    with bottom:
+        st.header("Map View")
+        map_ = plot_map(data)
+        st_folium(map_)
+
+elif menu_option == "Search Ticket":
     # Search Ticket Section
     st.header("Search Ticket by Number")
     ticket_number = st.text_input("Enter Ticket Number")
 
     if st.button("Search"):
-        ticket_details = get_ticket_details(ticket_number)
-        if ticket_details:
+        ticket_details = data[data["RequestNum"] == ticket_number.strip()]
+        if not ticket_details.empty:
             st.write("### Ticket Details")
-            for key, value in ticket_details.items():
+            for key, value in ticket_details.iloc[0].items():
                 st.write(f"**{key}:** {value}")
+
+            # Display message section
+            message_section(ticket_number)
         else:
             st.warning("Ticket not found.")
-
-elif menu_option == "Active Tickets Map":
-    # Active Tickets Map Section
-    st.header("Active Tickets Map")
-    if "Status" not in data.columns:
-        st.error("Column 'Status' not found in the data.")
-    else:
-        active_tickets = data[data["Status"] == "Active"]
-
-        if active_tickets.empty:
-            st.warning("No active tickets available.")
-        else:
-            map_ = plot_map(active_tickets)
-            if map_:
-                st_folium(map_)
