@@ -7,7 +7,6 @@ from streamlit_folium import folium_static
 open_tickets_url = "https://docs.google.com/spreadsheets/d/1a1YSAMCFsUJn-PBSKlcIiKgGjvZaz7hqZXXI_jWbUVc/export?format=csv"
 closed_tickets_url = "https://docs.google.com/spreadsheets/d/1Sa7qXR2oWtvYf9n1NRrSoI6EFWp31s7hqXBuQtvBF0Y/export?format=csv"
 
-# Cache the data to improve performance
 @st.cache_data
 def load_data():
     """Load open and closed tickets from Google Sheets."""
@@ -23,7 +22,6 @@ def load_data():
         st.error(f"Error loading data: {e}")
         return pd.DataFrame(), pd.DataFrame()
 
-# Load the data
 open_tickets, closed_tickets = load_data()
 
 def plot_tickets_on_map(tickets):
@@ -56,8 +54,10 @@ def search_tickets(tickets, start_date, end_date, contractor):
     """Filter tickets by date range and contractor."""
     if "Work To Begin Date" in tickets.columns:
         if start_date and end_date:
-            tickets = tickets[(pd.to_datetime(tickets["Work To Begin Date"]) >= start_date) & 
-                              (pd.to_datetime(tickets["Work To Begin Date"]) <= end_date)]
+            tickets = tickets[
+                (pd.to_datetime(tickets["Work To Begin Date"]) >= start_date) &
+                (pd.to_datetime(tickets["Work To Begin Date"]) <= end_date)
+            ]
     if contractor:
         tickets = tickets[tickets["Excavator"].str.contains(contractor, case=False, na=False)]
     return tickets
@@ -73,15 +73,14 @@ def admin_dashboard():
         contractor = st.text_input("Contractor Name")
 
         filtered_open_tickets = search_tickets(open_tickets, start_date, end_date, contractor)
+        st.subheader(f"Total Open Tickets: {len(filtered_open_tickets)}")
 
         subtabs = st.tabs(["List View", "Map View"])
 
         with subtabs[0]:
-            st.subheader("Open Tickets - List View")
             st.dataframe(filtered_open_tickets)
 
         with subtabs[1]:
-            st.subheader("Open Tickets - Map View")
             open_map = plot_tickets_on_map(filtered_open_tickets)
             folium_static(open_map, width=800, height=400)
 
@@ -91,15 +90,14 @@ def admin_dashboard():
         contractor = st.text_input("Contractor Name", key="closed_contractor")
 
         filtered_closed_tickets = search_tickets(closed_tickets, start_date, end_date, contractor)
+        st.subheader(f"Total Closed Tickets: {len(filtered_closed_tickets)}")
 
         subtabs = st.tabs(["List View", "Map View"])
 
         with subtabs[0]:
-            st.subheader("Closed Tickets - List View")
             st.dataframe(filtered_closed_tickets)
 
         with subtabs[1]:
-            st.subheader("Closed Tickets - Map View")
             closed_map = plot_tickets_on_map(filtered_closed_tickets)
             folium_static(closed_map, width=800, height=400)
 
@@ -115,15 +113,14 @@ def locator_dashboard(username):
 
         locator_open_tickets = open_tickets[open_tickets["Assigned Name"] == username]
         filtered_open_tickets = search_tickets(locator_open_tickets, start_date, end_date, contractor)
+        st.subheader(f"Total Open Tickets: {len(filtered_open_tickets)}")
 
         subtabs = st.tabs(["List View", "Map View"])
 
         with subtabs[0]:
-            st.subheader("Open Tickets Assigned to You - List View")
             st.dataframe(filtered_open_tickets)
 
         with subtabs[1]:
-            st.subheader("Open Tickets Assigned to You - Map View")
             open_map = plot_tickets_on_map(filtered_open_tickets)
             folium_static(open_map, width=800, height=400)
 
@@ -134,21 +131,21 @@ def locator_dashboard(username):
 
         locator_closed_tickets = closed_tickets[closed_tickets["Completed By"] == username]
         filtered_closed_tickets = search_tickets(locator_closed_tickets, start_date, end_date, contractor)
+        st.subheader(f"Total Closed Tickets: {len(filtered_closed_tickets)}")
 
         subtabs = st.tabs(["List View", "Map View"])
 
         with subtabs[0]:
-            st.subheader("Closed Tickets Completed by You - List View")
             st.dataframe(filtered_closed_tickets)
 
         with subtabs[1]:
-            st.subheader("Closed Tickets Completed by You - Map View")
             closed_map = plot_tickets_on_map(filtered_closed_tickets)
             folium_static(closed_map, width=800, height=400)
 
 def contractor_dashboard(username):
     contractor_tickets = open_tickets[open_tickets["Excavator"] == username]
     st.title(f"Contractor Dashboard - {username}")
+    st.subheader(f"Total Tickets: {len(contractor_tickets)}")
     st.dataframe(contractor_tickets)
 
 def logout():
