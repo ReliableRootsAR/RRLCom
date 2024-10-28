@@ -25,7 +25,7 @@ if "selected_ticket" not in st.session_state:
 data = load_data()
 
 # Function to plot all tickets on a map
-def plot_all_tickets(tickets):
+def plot_all_tickets(tickets, selected_ticket=None):
     """Create a map with markers for all tickets."""
     map_center = [38.9717, -95.2353]  # Default map center (Lawrence, KS)
     m = folium.Map(location=map_center, zoom_start=12)
@@ -36,33 +36,35 @@ def plot_all_tickets(tickets):
             longitude = float(ticket["Longitude"])
 
             # Extract relevant ticket details
-            request_num = ticket.get("RequestNum", "N/A")
+            request_num = ticket["RequestNum"]
             excavator = ticket.get("Excavator", "No excavator available")
             work_type = ticket.get("TypeOfWork", "No work type available")
 
-            # Create popup content with a JS function to update session state
+            # Create popup content
             popup_content = folium.Popup(
                 f"<b>RequestNum:</b> {request_num}<br>"
                 f"<b>Excavator:</b> {excavator}<br>"
-                f"<b>Type of Work:</b> {work_type}<br>"
-                f'<button onclick="window.location.href=\'?selected={request_num}\'">Select Ticket</button>',
+                f"<b>Type of Work:</b> {work_type}",
                 max_width=300
             )
 
-            folium.Marker(
+            marker = folium.Marker(
                 location=[latitude, longitude],
                 popup=popup_content,
                 tooltip=f"Ticket: {request_num}"
-            ).add_to(m)
+            )
+
+            # Highlight the selected ticket by panning to it
+            if selected_ticket and request_num == selected_ticket:
+                m.location = [latitude, longitude]
+                m.zoom_start = 15
+
+            marker.add_to(m)
 
         except (ValueError, KeyError) as e:
             st.warning(f"Skipping ticket due to invalid data: {e}")
 
     return m
-
-# Update session state when a ticket is clicked in the list
-def on_ticket_select(request_num):
-    st.session_state["selected_ticket"] = request_num
 
 # Streamlit App UI
 st.title("RRLCom - Ticket Management System")
@@ -83,20 +85,25 @@ elif menu_option == "Map/List View":
     # Map/List View: Ticket List on top, Map on bottom
     st.header("Map/List View")
 
-    # Top: Ticket List (Clickable)
+    # Top: Ticket List (Radio Buttons for Selection)
     with st.container():
         st.subheader("Ticket List")
-        for i, row in data.iterrows():
-            if st.button(f"{row['RequestNum']} - {row['Excavator']}"):
-                on_ticket_select(row["RequestNum"])
 
-    # Get the selected ticket from session state
-    selected_ticket = st.session_state.get("selected_ticket")
+        # Radio buttons to select a ticket
+        selected_ticket = st.radio(
+            "Select a Ticket:",
+            options=data["RequestNum"],
+            index=0 if st.session_state["selected_ticket"] is None else data["RequestNum"].tolist().index(st.session_state["selected_ticket"]),
+            key="ticket_radio"
+        )
+
+        # Update session state with the selected ticket
+        st.session_state["selected_ticket"] = selected_ticket
 
     # Bottom: Map of Tickets
     with st.container():
         st.subheader("Tickets Map")
-        map_ = plot_all_tickets(data)
+        map_ = plot_all_tickets(data, selected_ticket=selected_ticket)  # Plot with selected ticket
         folium_static(map_, width=800, height=400)
 
     # Message Section
@@ -104,7 +111,7 @@ elif menu_option == "Map/List View":
         st.subheader(f"Send a Message for Ticket: {selected_ticket}")
         message = st.text_area("Enter your message:")
         attachments = st.file_uploader("Attach files:", accept_multiple_files=True)
-        
+
         if st.button("Send Message"):
             st.success(f"Message sent for Ticket {selected_ticket}.")
             if attachments:
