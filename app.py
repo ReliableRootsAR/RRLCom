@@ -49,10 +49,22 @@ def plot_tickets_on_map(tickets):
 
 def search_tickets(tickets, date_column, start_date, end_date):
     """Filter tickets by date range."""
-    tickets[date_column] = pd.to_datetime(tickets[date_column], errors='coerce')
-    tickets = tickets.dropna(subset=[date_column])
+    try:
+        # Ensure date column is in datetime format
+        tickets[date_column] = pd.to_datetime(tickets[date_column], errors='coerce')
 
-    return tickets[(tickets[date_column] >= start_date) & (tickets[date_column] <= end_date)]
+        # Remove invalid date rows
+        tickets = tickets.dropna(subset=[date_column])
+
+        # Convert start and end dates to datetime (no timezone)
+        start_date = pd.to_datetime(start_date).replace(tzinfo=None)
+        end_date = pd.to_datetime(end_date).replace(tzinfo=None)
+
+        # Apply date filtering
+        return tickets[(tickets[date_column] >= start_date) & (tickets[date_column] <= end_date)]
+    except Exception as e:
+        st.error(f"Error filtering tickets: {e}")
+        return pd.DataFrame()
 
 def view_messages(status_filter=None):
     """Display real-time open and closed messages."""
