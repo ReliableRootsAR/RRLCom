@@ -11,7 +11,7 @@ sheet_url = "https://docs.google.com/spreadsheets/d/1a1YSAMCFsUJn-PBSKlcIiKgGjvZ
 def load_data():
     """Load the ticket data from the Google Sheet."""
     try:
-        data = pd.read_csv(sheet_url, dtype={"RequestNum": str})  # Ensure RequestNum is a string
+        data = pd.read_csv(sheet_url, dtype={"RequestNum": str})  # Ensure RequestNum is string
         return data
     except Exception as e:
         st.error(f"Error loading data: {e}")
@@ -41,7 +41,7 @@ def plot_all_tickets(tickets):
                 tooltip=f"Ticket: {ticket['RequestNum']}"
             ).add_to(m)
         except (ValueError, KeyError) as e:
-            st.warning(f"Skipping ticket due to invalid coordinates or data: {e}")
+            st.warning(f"Skipping ticket due to invalid data: {e}")
 
     return m
 
@@ -61,15 +61,15 @@ if menu_option == "List View":
     st.dataframe(data)  # Display all tickets in a DataFrame-like view
 
 elif menu_option == "Map/List View":
-    # Map/List View: Top - List of Tickets, Bottom - Map of Tickets
+    # Map/List View: Ticket List on top, Map on bottom
     st.header("Map/List View")
 
-    # Create two vertical sections: one for the list and one for the map
+    # Top: Ticket List
     with st.container():
         st.subheader("Ticket List")
-        # Use st.dataframe to display a scrollable list of tickets
-        st.dataframe(data, height=300)  # Limit height for better scrolling
+        st.dataframe(data, height=300)  # Scrollable list of tickets
 
+    # Bottom: Map of Tickets
     with st.container():
         st.subheader("Tickets Map")
         map_ = plot_all_tickets(data)  # Plot all tickets on the map
@@ -81,10 +81,13 @@ elif menu_option == "Search Ticket":
     ticket_number = st.text_input("Enter Ticket Number")
 
     if st.button("Search"):
-        ticket_details = data[data["RequestNum"] == ticket_number.strip()]
-        if not ticket_details.empty:
-            st.write("### Ticket Details")
-            for key, value in ticket_details.iloc[0].items():
-                st.write(f"**{key}:** {value}")
-        else:
-            st.warning("Ticket not found.")
+        try:
+            ticket_details = data[data["RequestNum"] == ticket_number.strip()]
+            if not ticket_details.empty:
+                st.write("### Ticket Details")
+                for key, value in ticket_details.iloc[0].items():
+                    st.write(f"**{key}:** {value}")
+            else:
+                st.warning("Ticket not found.")
+        except KeyError:
+            st.error("Error: 'RequestNum' column not found.")
