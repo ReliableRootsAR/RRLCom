@@ -51,16 +51,16 @@ def plot_tickets_on_map(tickets):
     return m
 
 def search_tickets(tickets, date_column, start_date, end_date, contractor):
-    """Filter tickets based on the specified date column and contractor."""
-    # Ensure the column is in datetime format
-    tickets[date_column] = pd.to_datetime(tickets[date_column], errors='coerce')
+    """Filter tickets by the date column and contractor."""
+    # Ensure consistent datetime format with UTC timezone
+    tickets[date_column] = pd.to_datetime(tickets[date_column], errors='coerce').dt.tz_localize(None)
 
-    # Drop rows where date conversion failed
+    # Drop rows with invalid dates (NaT)
     tickets = tickets.dropna(subset=[date_column])
 
-    # Convert start_date and end_date to datetime
-    start_date = pd.to_datetime(start_date)
-    end_date = pd.to_datetime(end_date)
+    # Convert input dates to datetime format (no timezone)
+    start_date = pd.to_datetime(start_date).replace(tzinfo=None)
+    end_date = pd.to_datetime(end_date).replace(tzinfo=None)
 
     # Filter by date range
     if start_date and end_date:
@@ -69,7 +69,7 @@ def search_tickets(tickets, date_column, start_date, end_date, contractor):
             (tickets[date_column] <= end_date)
         ]
 
-    # Filter by contractor
+    # Filter by contractor name if provided
     if contractor:
         tickets = tickets[tickets["Excavator"].str.contains(contractor, case=False, na=False)]
 
