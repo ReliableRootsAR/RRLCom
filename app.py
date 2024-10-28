@@ -61,18 +61,16 @@ if menu_option == "List View":
     st.dataframe(data)  # Display all tickets in a DataFrame-like view
 
 elif menu_option == "Map/List View":
-    # Map/List View: Top Half - List of Tickets, Bottom Half - Map of Tickets
+    # Map/List View: Top - List of Tickets, Bottom - Map of Tickets
     st.header("Map/List View")
 
     # Create two vertical sections: one for the list and one for the map
-    top_half, bottom_half = st.columns([1], gap="small")
-
-    with top_half:
+    with st.container():
         st.subheader("Ticket List")
         # Use st.dataframe to display a scrollable list of tickets
-        st.dataframe(data)
+        st.dataframe(data, height=300)  # Limit height for better scrolling
 
-    with bottom_half:
+    with st.container():
         st.subheader("Tickets Map")
         map_ = plot_all_tickets(data)  # Plot all tickets on the map
         st_folium(map_, width=800, height=400)  # Adjust map size
