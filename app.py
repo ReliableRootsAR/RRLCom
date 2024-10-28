@@ -10,12 +10,14 @@ closed_tickets_url = "https://docs.google.com/spreadsheets/d/1Sa7qXR2oWtvYf9n1NR
 # Cache the data to improve performance
 @st.cache_data
 def load_data():
+    """Load open and closed tickets from Google Sheets."""
     try:
         open_tickets = pd.read_csv(open_tickets_url)
         closed_tickets = pd.read_csv(closed_tickets_url)
 
-        open_tickets["Request Num"] = open_tickets["Request Num"].astype(str).str.replace(",", "")
-        closed_tickets["Request Num"] = closed_tickets["Request Num"].astype(str).str.replace(",", "")
+        # Ensure ticket numbers are strings without commas
+        open_tickets["RequestNum"] = open_tickets["RequestNum"].astype(str).str.replace(",", "")
+        closed_tickets["RequestNum"] = closed_tickets["RequestNum"].astype(str).str.replace(",", "")
 
         return open_tickets, closed_tickets
     except Exception as e:
@@ -27,6 +29,7 @@ open_tickets, closed_tickets = load_data()
 
 # Plot tickets on a map
 def plot_tickets_on_map(tickets):
+    """Plot all relevant tickets on a map."""
     m = folium.Map(location=[38.9717, -95.2353], zoom_start=12)
     for _, ticket in tickets.iterrows():
         try:
@@ -35,12 +38,12 @@ def plot_tickets_on_map(tickets):
             folium.Marker(
                 location=[latitude, longitude],
                 popup=(
-                    f"<b>RequestNum:</b> {ticket['Request Num']}<br>"
+                    f"<b>RequestNum:</b> {ticket['RequestNum']}<br>"
                     f"<b>Address:</b> {ticket['Address']}<br>"
                     f"<b>Excavator:</b> {ticket['Excavator']}<br>"
                     f"<b>Status:</b> {ticket['Status']}"
                 ),
-                tooltip=ticket["Request Num"]
+                tooltip=ticket["RequestNum"]
             ).add_to(m)
         except ValueError:
             st.warning(f"Skipping ticket with invalid coordinates.")
@@ -66,7 +69,7 @@ def admin_dashboard():
         st.subheader("Search Tickets by Number")
         ticket_number = st.text_input("Enter Ticket Number")
         if st.button("Search"):
-            result = all_tickets[all_tickets["Request Num"] == ticket_number.strip()]
+            result = all_tickets[all_tickets["RequestNum"] == ticket_number.strip()]
             if not result.empty:
                 st.write(result)
                 map_ = plot_tickets_on_map(result)
