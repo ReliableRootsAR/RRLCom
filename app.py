@@ -3,109 +3,111 @@ import pandas as pd
 import folium
 from streamlit_folium import folium_static
 
-# Public Google Sheet URL (export as CSV)
-sheet_url = "https://docs.google.com/spreadsheets/d/1a1YSAMCFsUJn-PBSKlcIiKgGjvZaz7hqZXXI_jWbUVc/export?format=csv"
+# URLs for Open and Closed Tickets Sheets (replace with your URLs)
+open_tickets_url = "https://docs.google.com/spreadsheets/d/your_open_sheet_id/export?format=csv"
+closed_tickets_url = "https://docs.google.com/spreadsheets/d/your_closed_sheet_id/export?format=csv"
 
 # Cache the data to improve performance
 @st.cache_data
 def load_data():
-    """Load the ticket data from the Google Sheet."""
+    """Load open and closed tickets from Google Sheets."""
     try:
-        data = pd.read_csv(sheet_url, dtype={"RequestNum": str})  # Ensure RequestNum is string
-        return data
+        open_tickets = pd.read_csv(open_tickets_url)
+        closed_tickets = pd.read_csv(closed_tickets_url)
+        return open_tickets, closed_tickets
     except Exception as e:
         st.error(f"Error loading data: {e}")
-        return pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame()
 
 # Load the data
-data = load_data()
+open_tickets, closed_tickets = load_data()
 
-# Function to plot a single ticket on a map
-def plot_ticket_on_map(ticket):
-    """Create a map centered on the given ticket."""
-    latitude = float(ticket["Latitude"])
-    longitude = float(ticket["Longitude"])
+# Filter tickets by user role
+def get_locator_tickets(username):
+    """Return tickets assigned to or completed by the locator."""
+    assigned_tickets = open_tickets[open_tickets["Assigned To"] == username]
+    completed_tickets = closed_tickets[closed_tickets["Completed By"] == username]
+    return pd.concat([assigned_tickets, completed_tickets])
 
-    # Create a map centered on the ticket location
-    m = folium.Map(location=[latitude, longitude], zoom_start=15)
+def get_contractor_tickets(username):
+    """Return tickets for the contractor."""
+    return open_tickets[open_tickets["Excavator"] == username]
 
-    # Extract relevant ticket details
-    request_num = ticket["RequestNum"]
-    excavator = ticket.get("Excavator", "N/A")
-    work_type = ticket.get("TypeOfWork", "N/A")
-
-    # Create popup content
-    popup_content = folium.Popup(
-        f"<b>RequestNum:</b> {request_num}<br>"
-        f"<b>Excavator:</b> {excavator}<br>"
-        f"<b>Type of Work:</b> {work_type}",
-        max_width=300
-    )
-
-    # Add a marker to the map
-    folium.Marker(
-        location=[latitude, longitude],
-        popup=popup_content,
-        tooltip=f"Ticket: {request_num}"
-    ).add_to(m)
-
+# Plot ticket on a map
+def plot_tickets_on_map(tickets):
+    """Plot all relevant tickets on a map."""
+    m = folium.Map(location=[38.9717, -95.2353], zoom_start=12)
+    for _, ticket in tickets.iterrows():
+        try:
+            latitude = float(ticket["Latitude"])
+            longitude = float(ticket["Longitude"])
+            folium.Marker(
+                location=[latitude, longitude],
+                popup=(
+                    f"<b>RequestNum:</b> {ticket['Request Num']}<br>"
+                    f"<b>Address:</b> {ticket['Address']}<br>"
+                    f"<b>Excavator:</b> {ticket['Excavator']}<br>"
+                    f"<b>Status:</b> {ticket['Status']}"
+                ),
+                tooltip=ticket["Request Num"]
+            ).add_to(m)
+        except ValueError:
+            st.warning(f"Skipping ticket with invalid coordinates.")
     return m
 
-# Streamlit App UI
-st.title("RRLCom - Ticket Management System")
+# Admin Dashboard
+def admin_dashboard():
+    st.title("Admin Dashboard")
+    st.write("View all tickets and manage user access.")
 
-# Sidebar for navigation
-st.sidebar.title("Navigation")
-menu_option = st.sidebar.selectbox(
-    "Select an option:",
-    ["List View", "Map View", "Search Ticket", "Messages"]
-)
+    st.subheader("Open Tickets")
+    st.dataframe(open_tickets)
 
-if menu_option == "List View":
-    # List View: Display all tickets in a scrollable table
-    st.header("All Tickets")
-    st.dataframe(data)  # Display the entire dataset
+    st.subheader("Closed Tickets")
+    st.dataframe(closed_tickets)
 
-elif menu_option == "Map View":
-    # Map View: Display all tickets on a map
-    st.header("Tickets Map")
-    map_ = folium.Map(location=[38.9717, -95.2353], zoom_start=12)
-    for _, ticket in data.iterrows():
-        try:
-            folium.Marker(
-                location=[float(ticket["Latitude"]), float(ticket["Longitude"])],
-                popup=f"<b>RequestNum:</b> {ticket['RequestNum']}",
-                tooltip=f"Ticket: {ticket['RequestNum']}"
-            ).add_to(map_)
-        except (ValueError, KeyError):
-            st.warning(f"Skipping ticket due to missing or invalid coordinates.")
-    folium_static(map_, width=800, height=600)
+# Locator Dashboard
+def locator_dashboard(username):
+    st.title(f"Locator Dashboard - {username}")
+    locator_tickets = get_locator_tickets(username)
+    st.write("Tickets assigned to or completed by you.")
+    st.dataframe(locator_tickets)
 
-elif menu_option == "Search Ticket":
-    # Search Ticket Section
-    st.header("Search Ticket by Number")
-    ticket_number = st.text_input("Enter Ticket Number")
+# Contractor Dashboard
+def contractor_dashboard(username):
+    st.title(f"Contractor Dashboard - {username}")
+    contractor_tickets = get_contractor_tickets(username)
+    st.write("Tickets associated with your organization.")
+    st.dataframe(contractor_tickets)
 
-    if st.button("Search"):
-        try:
-            ticket_details = data[data["RequestNum"] == ticket_number.strip()]
-            if not ticket_details.empty:
-                # Display ticket details
-                st.write("### Ticket Details")
-                for key, value in ticket_details.iloc[0].items():
-                    st.write(f"**{key}:** {value}")
+# Login Page
+def login():
+    st.title("Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
 
-                # Display a map for the ticket
-                st.write("### Ticket Location")
-                map_ = plot_ticket_on_map(ticket_details.iloc[0])
-                folium_static(map_, width=800, height=400)
+    if st.button("Login"):
+        if username == "admin" and password == "admin123":
+            st.session_state["role"] = "Admin"
+        elif username in open_tickets["Assigned To"].unique():
+            st.session_state["role"] = "Locator"
+            st.session_state["username"] = username
+        elif username in open_tickets["Excavator"].unique():
+            st.session_state["role"] = "Contractor"
+            st.session_state["username"] = username
+        else:
+            st.error("Invalid credentials")
 
-            else:
-                st.warning("Ticket not found.")
-        except KeyError:
-            st.error("Error: 'RequestNum' column not found.")
+# Main App Flow
+if "role" not in st.session_state:
+    login()
+else:
+    role = st.session_state["role"]
+    username = st.session_state.get("username", "")
 
-elif menu_option == "Messages":
-    # View sent messages (Placeholder for now)
-    st.header("Sent Messages")
-    st.write("This section will display all sent messages.")
+    if role == "Admin":
+        admin_dashboard()
+    elif role == "Locator":
+        locator_dashboard(username)
+    elif role == "Contractor":
+        contractor_dashboard(username)
