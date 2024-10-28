@@ -20,9 +20,9 @@ def load_data():
 # Load the data
 data = load_data()
 
-# Function to plot tickets on a map
-def plot_map(tickets):
-    """Create an interactive map with markers for tickets."""
+# Function to plot all tickets on a map
+def plot_all_tickets(tickets):
+    """Create a map with markers for all tickets."""
     map_center = [38.9717, -95.2353]  # Default map center (Lawrence, KS)
     m = folium.Map(location=map_center, zoom_start=12)
 
@@ -45,15 +45,6 @@ def plot_map(tickets):
 
     return m
 
-# Function to display the message input and reply section
-def message_section(request_num):
-    """Message system for sending and replying to messages."""
-    st.subheader(f"Messages for Ticket: {request_num}")
-    message = st.text_area("Enter your message:")
-    if st.button("Send Message"):
-        # For now, just simulate sending a message (can store messages later)
-        st.success(f"Message sent for Ticket {request_num}: {message}")
-
 # Streamlit App UI
 st.title("RRLCom - Ticket Management System")
 
@@ -61,37 +52,30 @@ st.title("RRLCom - Ticket Management System")
 st.sidebar.title("Navigation")
 menu_option = st.sidebar.selectbox(
     "Select an option:",
-    ["List View", "Split View", "Search Ticket"]
+    ["List View", "Map/List View", "Search Ticket"]
 )
 
 if menu_option == "List View":
-    # List View of All Tickets
+    # List View: Display all tickets in a scrollable table
     st.header("All Tickets")
-    st.dataframe(data)  # Display all tickets in a table-like view
+    st.dataframe(data)  # Display all tickets in a DataFrame-like view
 
-elif menu_option == "Split View":
-    # Split View: List View on Top, Map Below
-    st.header("Tickets Overview (List and Map)")
+elif menu_option == "Map/List View":
+    # Map/List View: Top Half - List of Tickets, Bottom Half - Map of Tickets
+    st.header("Map/List View")
 
-    # Create two columns: one for list view, one for the map
-    top, bottom = st.columns([1, 2])
+    # Create two vertical sections: one for the list and one for the map
+    top_half, bottom_half = st.columns([1], gap="small")
 
-    # List view in the top section
-    with top:
-        selected_ticket = st.selectbox("Select a Ticket:", data["RequestNum"])
-        ticket_details = data[data["RequestNum"] == selected_ticket].iloc[0]
-        st.write(f"### Ticket Details for {selected_ticket}")
-        for key, value in ticket_details.items():
-            st.write(f"**{key}:** {value}")
+    with top_half:
+        st.subheader("Ticket List")
+        # Use st.dataframe to display a scrollable list of tickets
+        st.dataframe(data)
 
-        # Display message section
-        message_section(selected_ticket)
-
-    # Map view in the bottom section
-    with bottom:
-        st.header("Map View")
-        map_ = plot_map(data)
-        st_folium(map_)
+    with bottom_half:
+        st.subheader("Tickets Map")
+        map_ = plot_all_tickets(data)  # Plot all tickets on the map
+        st_folium(map_, width=800, height=400)  # Adjust map size
 
 elif menu_option == "Search Ticket":
     # Search Ticket Section
@@ -104,8 +88,5 @@ elif menu_option == "Search Ticket":
             st.write("### Ticket Details")
             for key, value in ticket_details.iloc[0].items():
                 st.write(f"**{key}:** {value}")
-
-            # Display message section
-            message_section(ticket_number)
         else:
             st.warning("Ticket not found.")
