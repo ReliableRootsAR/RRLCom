@@ -101,9 +101,9 @@ def contractor_dashboard(username):
 
 # Logout Functionality
 def logout():
-    for key in st.session_state.keys():
-        del st.session_state[key]
-    st.experimental_rerun()  # Safely reload the app
+    """Clear session state and set logout flag."""
+    st.session_state.clear()
+    st.session_state["logged_out"] = True
 
 # Login Page
 def login():
@@ -127,7 +127,9 @@ def login():
         st.sidebar.button("Logout", on_click=logout)
 
 # Main App Flow
-if "role" not in st.session_state:
+if "role" not in st.session_state or st.session_state.get("logged_out", False):
+    if "logged_out" in st.session_state:
+        del st.session_state["logged_out"]  # Remove the flag after handling it
     login()
 else:
     role = st.session_state["role"]
