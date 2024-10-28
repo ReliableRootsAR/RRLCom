@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import folium
-from streamlit_folium import st_folium
 from streamlit_folium import folium_static
 
 # Public Google Sheet URL (export as CSV)
@@ -12,7 +11,7 @@ sheet_url = "https://docs.google.com/spreadsheets/d/1a1YSAMCFsUJn-PBSKlcIiKgGjvZ
 def load_data():
     """Load the ticket data from the Google Sheet."""
     try:
-        data = pd.read_csv(sheet_url, dtype={"RequestNum": str})  # Ensure RequestNum is string
+        data = pd.read_csv(sheet_url, dtype={"RequestNum": str})  # Ensure RequestNum is a string
         return data
     except Exception as e:
         st.error(f"Error loading data: {e}")
@@ -36,14 +35,12 @@ def plot_all_tickets(tickets, selected_ticket=None):
             request_num = ticket.get("RequestNum", "N/A")
             excavator = ticket.get("Excavator", "No excavator available")
             work_type = ticket.get("TypeOfWork", "No work type available")
-            extent = ticket.get("ExtentOfWork", "No extent of work available")
 
             # Create popup content
             popup_content = (
                 f"<b>RequestNum:</b> {request_num}<br>"
                 f"<b>Excavator:</b> {excavator}<br>"
-                f"<b>Type of Work:</b> {work_type}<br>"
-                f"<b>Extent of Work:</b> {extent}"
+                f"<b>Type of Work:</b> {work_type}"
             )
 
             marker = folium.Marker(
