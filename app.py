@@ -11,11 +11,11 @@ sheet_url = "https://docs.google.com/spreadsheets/d/1a1YSAMCFsUJn-PBSKlcIiKgGjvZ
 def load_data():
     """Load the ticket data from the Google Sheet."""
     try:
-        data = pd.read_csv(sheet_url)
+        data = pd.read_csv(sheet_url, dtype={"RequestNum": str})  # Ensure ticket numbers are strings
         st.write("### Data Preview")
-        st.write(data.head())  # Display the first few rows of data
+        st.write(data.head())  # Show the first few rows for verification
         st.write("### Column Names")
-        st.write(data.columns)  # Display the exact column names
+        st.write(data.columns)  # Display column names for debugging
         return data
     except Exception as e:
         st.error(f"Error loading data: {e}")
@@ -26,15 +26,10 @@ data = load_data()
 
 # Function to search for ticket details by ticket number
 def get_ticket_details(ticket_number):
-    """Retrieve ticket details based on ticket number."""
+    """Retrieve ticket details based on RequestNum."""
     try:
-        # Check for exact column name match
-        column_name = "Ticket Number"
-        if column_name not in data.columns:
-            st.error(f"Column '{column_name}' not found. Check the column names above.")
-            return None
-
-        ticket = data[data[column_name].astype(str) == ticket_number]
+        ticket_number = ticket_number.strip()  # Clean up any spaces
+        ticket = data[data["RequestNum"] == ticket_number]  # Use the correct column name
         if ticket.empty:
             return None
         return ticket.iloc[0].to_dict()
@@ -46,19 +41,24 @@ def get_ticket_details(ticket_number):
 def plot_map(tickets):
     """Create a map with markers for active tickets."""
     try:
-        map_center = [38.9717, -95.2353]  # Example: Lawrence, KS
+        map_center = [38.9717, -95.2353]  # Default: Lawrence, KS
         m = folium.Map(location=map_center, zoom_start=12)
 
         for _, ticket in tickets.iterrows():
-            folium.Marker(
-                location=[ticket["Latitude"], ticket["Longitude"]],
-                popup=f'Ticket: {ticket["Ticket Number"]}',
-                tooltip=ticket["Description"],
-            ).add_to(m)
+            try:
+                latitude = float(ticket["Latitude"])
+                longitude = float(ticket["Longitude"])
+                folium.Marker(
+                    location=[latitude, longitude],
+                    popup=f'Ticket: {ticket["RequestNum"]}',
+                    tooltip=ticket["Description"],
+                ).add_to(m)
+            except (ValueError, KeyError) as e:
+                st.warning(f"Skipping ticket due to invalid coordinates or data: {e}")
 
         return m
-    except KeyError as e:
-        st.error(f"Missing column for map: {e}")
+    except Exception as e:
+        st.error(f"Error creating the map: {e}")
         return None
 
 # Streamlit App UI
