@@ -77,6 +77,22 @@ def view_messages(status_filter=None):
             if msg["attachments"]:
                 for attachment in msg["attachments"]:
                     st.write(f"📎 {attachment.name}")
+            # Reply Section
+            reply = st.text_area(f"Reply to Ticket {msg['ticket_num']}", key=f"reply_{msg['ticket_num']}")
+            reply_attachments = st.file_uploader("Attach Files", accept_multiple_files=True, key=f"reply_attach_{msg['ticket_num']}")
+            if st.button(f"Send Reply for Ticket {msg['ticket_num']}"):
+                if reply:
+                    msg.setdefault("replies", []).append({
+                        "sender": "Locator/Admin",
+                        "message": reply,
+                        "attachments": reply_attachments
+                    })
+                    st.success("Reply sent!")
+                else:
+                    st.warning("Reply cannot be empty.")
+            if msg["attachments"]:
+                for attachment in msg["attachments"]:
+                    st.write(f"📎 {attachment.name}")
             if st.button(f"Close Message for Ticket {msg['ticket_num']}"):
                 msg["status"] = "Closed"
                 st.experimental_rerun()
@@ -88,7 +104,8 @@ def send_message(ticket_num, sender, message, attachments):
         "sender": sender,
         "message": message,
         "attachments": attachments,
-        "status": "Open"
+        "status": "Open",
+        "replies": []
     })
 
 def ticket_dashboard(tickets, role, key_prefix):
