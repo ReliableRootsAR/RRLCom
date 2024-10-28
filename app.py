@@ -15,7 +15,6 @@ def load_data():
         open_tickets = pd.read_csv(open_tickets_url)
         closed_tickets = pd.read_csv(closed_tickets_url)
 
-        # Ensure ticket numbers are strings without commas
         open_tickets["RequestNum"] = open_tickets["RequestNum"].astype(str).str.replace(",", "")
         closed_tickets["RequestNum"] = closed_tickets["RequestNum"].astype(str).str.replace(",", "")
 
@@ -27,9 +26,8 @@ def load_data():
 # Load the data
 open_tickets, closed_tickets = load_data()
 
-# Plot tickets on a map
 def plot_tickets_on_map(tickets):
-    """Plot all relevant tickets on a map."""
+    """Plot filtered tickets on a map."""
     m = folium.Map(location=[38.9717, -95.2353], zoom_start=12)
     for _, ticket in tickets.iterrows():
         try:
@@ -54,81 +52,108 @@ def plot_tickets_on_map(tickets):
             st.warning("Skipping ticket with invalid coordinates.")
     return m
 
-# Admin Dashboard with Open and Closed Tabs (List and Map Views)
+def search_tickets(tickets, start_date, end_date, contractor):
+    """Filter tickets by date range and contractor."""
+    if start_date and end_date:
+        tickets = tickets[(tickets["Work To Begin Date"] >= start_date) & 
+                          (tickets["Work To Begin Date"] <= end_date)]
+    if contractor:
+        tickets = tickets[tickets["Excavator"].str.contains(contractor, case=False, na=False)]
+    return tickets
+
 def admin_dashboard():
     st.title("Admin Dashboard")
 
     tab1, tab2 = st.tabs(["Open Tickets", "Closed Tickets"])
 
     with tab1:
+        start_date = st.date_input("Start Date")
+        end_date = st.date_input("End Date")
+        contractor = st.text_input("Contractor Name")
+
+        filtered_open_tickets = search_tickets(open_tickets, start_date, end_date, contractor)
+
         subtabs = st.tabs(["List View", "Map View"])
 
         with subtabs[0]:
             st.subheader("Open Tickets - List View")
-            st.dataframe(open_tickets)
+            st.dataframe(filtered_open_tickets)
 
         with subtabs[1]:
             st.subheader("Open Tickets - Map View")
-            open_map = plot_tickets_on_map(open_tickets)
+            open_map = plot_tickets_on_map(filtered_open_tickets)
             folium_static(open_map, width=800, height=400)
 
     with tab2:
+        start_date = st.date_input("Start Date", key="closed_start")
+        end_date = st.date_input("End Date", key="closed_end")
+        contractor = st.text_input("Contractor Name", key="closed_contractor")
+
+        filtered_closed_tickets = search_tickets(closed_tickets, start_date, end_date, contractor)
+
         subtabs = st.tabs(["List View", "Map View"])
 
         with subtabs[0]:
             st.subheader("Closed Tickets - List View")
-            st.dataframe(closed_tickets)
+            st.dataframe(filtered_closed_tickets)
 
         with subtabs[1]:
             st.subheader("Closed Tickets - Map View")
-            closed_map = plot_tickets_on_map(closed_tickets)
+            closed_map = plot_tickets_on_map(filtered_closed_tickets)
             folium_static(closed_map, width=800, height=400)
 
-# Locator Dashboard with Open and Closed Tabs (List and Map Views)
 def locator_dashboard(username):
     st.title(f"Locator Dashboard - {username}")
 
     tab1, tab2 = st.tabs(["Open Tickets", "Closed Tickets"])
 
     with tab1:
+        start_date = st.date_input("Start Date")
+        end_date = st.date_input("End Date")
+        contractor = st.text_input("Contractor Name")
+
+        locator_open_tickets = open_tickets[open_tickets["Assigned Name"] == username]
+        filtered_open_tickets = search_tickets(locator_open_tickets, start_date, end_date, contractor)
+
         subtabs = st.tabs(["List View", "Map View"])
 
         with subtabs[0]:
             st.subheader("Open Tickets Assigned to You - List View")
-            locator_open_tickets = open_tickets[open_tickets["Assigned Name"] == username]
-            st.dataframe(locator_open_tickets)
+            st.dataframe(filtered_open_tickets)
 
         with subtabs[1]:
             st.subheader("Open Tickets Assigned to You - Map View")
-            open_map = plot_tickets_on_map(locator_open_tickets)
+            open_map = plot_tickets_on_map(filtered_open_tickets)
             folium_static(open_map, width=800, height=400)
 
     with tab2:
+        start_date = st.date_input("Start Date", key="locator_closed_start")
+        end_date = st.date_input("End Date", key="locator_closed_end")
+        contractor = st.text_input("Contractor Name", key="locator_closed_contractor")
+
+        locator_closed_tickets = closed_tickets[closed_tickets["Completed By"] == username]
+        filtered_closed_tickets = search_tickets(locator_closed_tickets, start_date, end_date, contractor)
+
         subtabs = st.tabs(["List View", "Map View"])
 
         with subtabs[0]:
             st.subheader("Closed Tickets Completed by You - List View")
-            locator_closed_tickets = closed_tickets[closed_tickets["Completed By"] == username]
-            st.dataframe(locator_closed_tickets)
+            st.dataframe(filtered_closed_tickets)
 
         with subtabs[1]:
             st.subheader("Closed Tickets Completed by You - Map View")
-            closed_map = plot_tickets_on_map(locator_closed_tickets)
+            closed_map = plot_tickets_on_map(filtered_closed_tickets)
             folium_static(closed_map, width=800, height=400)
 
-# Contractor Dashboard
 def contractor_dashboard(username):
     contractor_tickets = open_tickets[open_tickets["Excavator"] == username]
     st.title(f"Contractor Dashboard - {username}")
     st.dataframe(contractor_tickets)
 
-# Logout Functionality
 def logout():
-    """Clear session state and set logout flag."""
     st.session_state.clear()
     st.session_state["logged_out"] = True
 
-# Login Page
 def login():
     st.title("Login")
     username = st.text_input("Username")
@@ -149,7 +174,6 @@ def login():
     if "role" in st.session_state:
         st.sidebar.button("Logout", on_click=logout)
 
-# Main App Flow
 if "role" not in st.session_state or st.session_state.get("logged_out", False):
     if "logged_out" in st.session_state:
         del st.session_state["logged_out"]
