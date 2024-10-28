@@ -77,12 +77,21 @@ def admin_dashboard():
             else:
                 st.warning("Ticket not found.")
 
-# Locator Dashboard
+# Locator Dashboard with Open and Closed Tickets
 def locator_dashboard(username):
-    locator_tickets = open_tickets[open_tickets["Assigned Name"] == username]
-    completed_tickets = closed_tickets[closed_tickets["Completed By"] == username]
     st.title(f"Locator Dashboard - {username}")
-    st.dataframe(pd.concat([locator_tickets, completed_tickets]))
+
+    tab1, tab2 = st.tabs(["Open Tickets", "Closed Tickets"])
+
+    with tab1:
+        st.subheader("Open Tickets Assigned to You")
+        locator_open_tickets = open_tickets[open_tickets["Assigned Name"] == username]
+        st.dataframe(locator_open_tickets)
+
+    with tab2:
+        st.subheader("Closed Tickets Completed by You")
+        locator_closed_tickets = closed_tickets[closed_tickets["Completed By"] == username]
+        st.dataframe(locator_closed_tickets)
 
 # Contractor Dashboard
 def contractor_dashboard(username):
@@ -94,7 +103,7 @@ def contractor_dashboard(username):
 def logout():
     for key in st.session_state.keys():
         del st.session_state[key]
-    st.experimental_rerun()
+    st.experimental_rerun()  # Safely reload the app
 
 # Login Page
 def login():
