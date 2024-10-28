@@ -76,21 +76,37 @@ def admin_dashboard():
         closed_map = plot_tickets_on_map(closed_tickets)
         folium_static(closed_map, width=800, height=400)
 
-# Locator Dashboard with Open and Closed Tabs
+# Locator Dashboard with List and Map Views
 def locator_dashboard(username):
     st.title(f"Locator Dashboard - {username}")
 
     tab1, tab2 = st.tabs(["Open Tickets", "Closed Tickets"])
 
     with tab1:
-        st.subheader("Open Tickets Assigned to You")
-        locator_open_tickets = open_tickets[open_tickets["Assigned Name"] == username]
-        st.dataframe(locator_open_tickets)
+        subtabs = st.tabs(["List View", "Map View"])
+
+        with subtabs[0]:
+            st.subheader("Open Tickets Assigned to You - List View")
+            locator_open_tickets = open_tickets[open_tickets["Assigned Name"] == username]
+            st.dataframe(locator_open_tickets)
+
+        with subtabs[1]:
+            st.subheader("Open Tickets Assigned to You - Map View")
+            open_map = plot_tickets_on_map(locator_open_tickets)
+            folium_static(open_map, width=800, height=400)
 
     with tab2:
-        st.subheader("Closed Tickets Completed by You")
-        locator_closed_tickets = closed_tickets[closed_tickets["Completed By"] == username]
-        st.dataframe(locator_closed_tickets)
+        subtabs = st.tabs(["List View", "Map View"])
+
+        with subtabs[0]:
+            st.subheader("Closed Tickets Completed by You - List View")
+            locator_closed_tickets = closed_tickets[closed_tickets["Completed By"] == username]
+            st.dataframe(locator_closed_tickets)
+
+        with subtabs[1]:
+            st.subheader("Closed Tickets Completed by You - Map View")
+            closed_map = plot_tickets_on_map(locator_closed_tickets)
+            folium_static(closed_map, width=800, height=400)
 
 # Contractor Dashboard
 def contractor_dashboard(username):
