@@ -67,6 +67,28 @@ def close_message(ticket_num):
         if msg["ticket_num"] == ticket_num:
             msg["status"] = "Closed"
 
+def ticket_dashboard(tickets, role):
+    """Generic dashboard for viewing tickets."""
+    tab1, tab2 = st.tabs(["List View", "Map View"])
+
+    with tab1:
+        st.dataframe(tickets)
+
+    with tab2:
+        map_view = plot_tickets_on_map(tickets)
+        folium_static(map_view, width=800, height=400)
+
+    ticket_num = st.text_input("Enter Ticket Number to View Messages")
+    if ticket_num:
+        view_messages(ticket_num)
+
+    if role == "Locator" or role == "Admin":
+        st.text_area("Enter your message", key="message_text")
+        if st.button("Send"):
+            message = st.session_state["message_text"]
+            send_message(ticket_num, role, message)
+            st.success("Message sent!")
+
 def admin_dashboard():
     st.title("Admin Dashboard")
 
@@ -74,45 +96,27 @@ def admin_dashboard():
 
     with tab1:
         st.subheader("Open Tickets")
-        open_map = plot_tickets_on_map(open_tickets)
-        folium_static(open_map, width=800, height=400)
+        ticket_dashboard(open_tickets, "Admin")
 
     with tab2:
         st.subheader("Closed Tickets")
-        closed_map = plot_tickets_on_map(closed_tickets)
-        folium_static(closed_map, width=800, height=400)
-
-    st.subheader("Messages")
-    for msg in st.session_state["messages"]:
-        st.write(f"**Ticket {msg['ticket_num']}**: {msg['message']} - {msg['status']}")
+        ticket_dashboard(closed_tickets, "Admin")
 
 def locator_dashboard(username):
     st.title(f"Locator Dashboard - {username}")
 
+    locator_open = open_tickets[open_tickets["Assigned Name"] == username]
+    locator_closed = closed_tickets[closed_tickets["Completed By"] == username]
+
     tab1, tab2 = st.tabs(["Open Tickets", "Closed Tickets"])
 
     with tab1:
-        locator_open_tickets = open_tickets[open_tickets["Assigned Name"] == username]
         st.subheader("Open Tickets")
-        open_map = plot_tickets_on_map(locator_open_tickets)
-        folium_static(open_map, width=800, height=400)
+        ticket_dashboard(locator_open, "Locator")
 
     with tab2:
-        locator_closed_tickets = closed_tickets[closed_tickets["Completed By"] == username]
         st.subheader("Closed Tickets")
-        closed_map = plot_tickets_on_map(locator_closed_tickets)
-        folium_static(closed_map, width=800, height=400)
-
-    st.subheader("Messages")
-    ticket_num = st.text_input("Enter Ticket Number to View Messages")
-    if ticket_num:
-        view_messages(ticket_num)
-
-    st.subheader("Send a Message")
-    message = st.text_area("Enter your message")
-    if st.button("Send"):
-        send_message(ticket_num, username, message)
-        st.success("Message sent!")
+        ticket_dashboard(locator_closed, "Locator")
 
 def logout():
     st.session_state.clear()
