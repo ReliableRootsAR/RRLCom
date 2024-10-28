@@ -4,7 +4,7 @@ import folium
 from streamlit_folium import folium_static
 
 # URLs for Open and Closed Tickets Sheets
-open_tickets_url = "https://docs.google.com/spreadsheets/d/1a1YSAMCFsUJn-PBSKlcIiKgGjvZaz7hqZXXI_jWbUVc/export?format=csv"
+open_tickets_url = "https://docs.google.com/spreadsheets/d/1a1YSAMCFsUJn-PBSKlcIiKgGjvZaz7hqXXXI_jWbUVc/export?format=csv"
 closed_tickets_url = "https://docs.google.com/spreadsheets/d/1Sa7qXR2oWtvYf9n1NRrSoI6EFWp31s7hqXBuQtvBF0Y/export?format=csv"
 
 # Initialize message storage in session state
@@ -13,12 +13,10 @@ if "messages" not in st.session_state:
 
 @st.cache_data
 def load_data():
-    """Load open and closed tickets from Google Sheets."""
     try:
         open_tickets = pd.read_csv(open_tickets_url)
         closed_tickets = pd.read_csv(closed_tickets_url)
 
-        # Clean ticket numbers
         open_tickets["RequestNum"] = open_tickets["RequestNum"].astype(str).str.replace(",", "")
         closed_tickets["RequestNum"] = closed_tickets["RequestNum"].astype(str).str.replace(",", "")
 
@@ -29,109 +27,54 @@ def load_data():
 
 open_tickets, closed_tickets = load_data()
 
-def plot_tickets_on_map(tickets):
-    """Plot tickets on a map."""
-    m = folium.Map(location=[38.9717, -95.2353], zoom_start=12)  # Example: Lawrence, KS
-    for _, ticket in tickets.iterrows():
-        try:
-            latitude = float(ticket.get("Latitude", 0))
-            longitude = float(ticket.get("Longitude", 0))
-            request_num = ticket.get("RequestNum", "Unknown")
-
-            folium.Marker(
-                location=[latitude, longitude],
-                popup=f"<b>RequestNum:</b> {request_num}",
-                tooltip=request_num
-            ).add_to(m)
-        except ValueError:
-            st.warning("Skipping ticket with invalid coordinates.")
-    return m
-
-def send_message(ticket_num, sender, message):
-    """Add a message to session state."""
+def send_message(ticket_num, sender, message, attachments):
+    """Add a message with attachments to session state."""
     st.session_state["messages"].append({
         "ticket_num": ticket_num,
         "sender": sender,
         "message": message,
+        "attachments": attachments,
         "status": "Open"
     })
 
 def view_messages(ticket_num=None, status_filter=None):
-    """Display messages with optional filtering."""
+    """Display messages with collapsible sections."""
     messages = st.session_state["messages"]
-    
-    if ticket_num:
-        messages = [msg for msg in messages if msg["ticket_num"] == ticket_num]
-    
+
     if status_filter:
         messages = [msg for msg in messages if msg["status"] == status_filter]
 
-    if messages:
-        for msg in messages:
-            st.write(f"**{msg['sender']}** (Ticket {msg['ticket_num']}): {msg['message']} ({msg['status']})")
-    else:
-        st.write("No messages found.")
+    grouped_messages = {}
+    for msg in messages:
+        ticket = msg["ticket_num"]
+        if ticket not in grouped_messages:
+            grouped_messages[ticket] = []
+        grouped_messages[ticket].append(msg)
 
-def close_message(ticket_num):
-    """Mark messages for a ticket as closed."""
-    for msg in st.session_state["messages"]:
-        if msg["ticket_num"] == ticket_num:
-            msg["status"] = "Closed"
+    for ticket, msgs in grouped_messages.items():
+        with st.expander(f"Ticket {ticket} - {len(msgs)} message(s)"):
+            for msg in msgs:
+                st.write(f"**{msg['sender']}**: {msg['message']} ({msg['status']})")
+                if msg["attachments"]:
+                    for attachment in msg["attachments"]:
+                        st.write(f"📎 {attachment.name}")
+                st.write("---")
 
-def ticket_dashboard(tickets, role, key_prefix):
-    """Generic dashboard for viewing tickets."""
-    tab1, tab2 = st.tabs(["List View", "Map View"])
+            # Reply box and Close Message button
+            reply = st.text_area(f"Reply to Ticket {ticket}", key=f"reply_{ticket}")
+            attachments = st.file_uploader(
+                f"Attach files to Ticket {ticket}",
+                accept_multiple_files=True,
+                key=f"attach_{ticket}"
+            )
+            if st.button(f"Send Reply for Ticket {ticket}", key=f"send_reply_{ticket}"):
+                send_message(ticket, "Reply", reply, attachments)
+                st.success("Reply sent!")
 
-    with tab1:
-        st.dataframe(tickets)
-
-    with tab2:
-        map_view = plot_tickets_on_map(tickets)
-        folium_static(map_view, width=800, height=400)
-
-    # Input field for viewing messages, with unique key
-    ticket_num = st.text_input(f"Enter Ticket Number to View Messages", 
-                               key=f"{key_prefix}_ticket_input")
-
-    if ticket_num:
-        view_messages(ticket_num)
-
-    if role in ["Locator", "Admin"]:
-        message = st.text_area("Enter your message", key=f"{key_prefix}_message_text")
-        if st.button("Send", key=f"{key_prefix}_send_button"):
-            send_message(ticket_num, role, message)
-            st.success("Message sent!")
-
-def admin_dashboard():
-    """Admin dashboard with open and closed tickets."""
-    st.title("Admin Dashboard")
-
-    tab1, tab2 = st.tabs(["Open Tickets", "Closed Tickets"])
-
-    with tab1:
-        st.subheader("Open Tickets")
-        ticket_dashboard(open_tickets, "Admin", key_prefix="admin_open")
-
-    with tab2:
-        st.subheader("Closed Tickets")
-        ticket_dashboard(closed_tickets, "Admin", key_prefix="admin_closed")
-
-def locator_dashboard(username):
-    """Locator dashboard with assigned tickets."""
-    st.title(f"Locator Dashboard - {username}")
-
-    locator_open = open_tickets[open_tickets["Assigned Name"] == username]
-    locator_closed = closed_tickets[closed_tickets["Completed By"] == username]
-
-    tab1, tab2 = st.tabs(["Open Tickets", "Closed Tickets"])
-
-    with tab1:
-        st.subheader("Open Tickets")
-        ticket_dashboard(locator_open, "Locator", key_prefix=f"locator_open_{username}")
-
-    with tab2:
-        st.subheader("Closed Tickets")
-        ticket_dashboard(locator_closed, "Locator", key_prefix=f"locator_closed_{username}")
+            if st.button(f"Close Ticket {ticket}", key=f"close_{ticket}"):
+                for msg in msgs:
+                    msg["status"] = "Closed"
+                st.success(f"Ticket {ticket} closed.")
 
 def message_dashboard():
     """Dedicated dashboard for viewing open and closed messages."""
@@ -170,7 +113,6 @@ def login():
     if "role" in st.session_state:
         st.sidebar.button("Logout", on_click=logout, key="sidebar_logout")
 
-# Main application logic
 if "role" not in st.session_state or st.session_state.get("logged_out", False):
     if "logged_out" in st.session_state:
         del st.session_state["logged_out"]
@@ -182,9 +124,6 @@ else:
     st.sidebar.button("Logout", on_click=logout, key="main_logout")
 
     if role == "Admin":
-        admin_dashboard()
+        message_dashboard()
     elif role == "Locator":
-        locator_dashboard(username)
-
-    # Messaging section available to all roles
-    st.sidebar.button("Messages", on_click=message_dashboard)
+        message_dashboard()
