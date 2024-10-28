@@ -54,29 +54,37 @@ def plot_tickets_on_map(tickets):
             st.warning("Skipping ticket with invalid coordinates.")
     return m
 
-# Admin Dashboard with Split List and Map View
+# Admin Dashboard with Open and Closed Tabs (List and Map Views)
 def admin_dashboard():
     st.title("Admin Dashboard")
 
-    tab1, tab2 = st.tabs(["List View", "Map View"])
+    tab1, tab2 = st.tabs(["Open Tickets", "Closed Tickets"])
 
     with tab1:
-        st.subheader("Open Tickets - List View")
-        st.dataframe(open_tickets)
+        subtabs = st.tabs(["List View", "Map View"])
 
-        st.subheader("Closed Tickets - List View")
-        st.dataframe(closed_tickets)
+        with subtabs[0]:
+            st.subheader("Open Tickets - List View")
+            st.dataframe(open_tickets)
+
+        with subtabs[1]:
+            st.subheader("Open Tickets - Map View")
+            open_map = plot_tickets_on_map(open_tickets)
+            folium_static(open_map, width=800, height=400)
 
     with tab2:
-        st.subheader("Open Tickets - Map View")
-        open_map = plot_tickets_on_map(open_tickets)
-        folium_static(open_map, width=800, height=400)
+        subtabs = st.tabs(["List View", "Map View"])
 
-        st.subheader("Closed Tickets - Map View")
-        closed_map = plot_tickets_on_map(closed_tickets)
-        folium_static(closed_map, width=800, height=400)
+        with subtabs[0]:
+            st.subheader("Closed Tickets - List View")
+            st.dataframe(closed_tickets)
 
-# Locator Dashboard with List and Map Views
+        with subtabs[1]:
+            st.subheader("Closed Tickets - Map View")
+            closed_map = plot_tickets_on_map(closed_tickets)
+            folium_static(closed_map, width=800, height=400)
+
+# Locator Dashboard with Open and Closed Tabs (List and Map Views)
 def locator_dashboard(username):
     st.title(f"Locator Dashboard - {username}")
 
