@@ -54,9 +54,10 @@ def plot_tickets_on_map(tickets):
 
 def search_tickets(tickets, start_date, end_date, contractor):
     """Filter tickets by date range and contractor."""
-    if start_date and end_date:
-        tickets = tickets[(tickets["Work To Begin Date"] >= start_date) & 
-                          (tickets["Work To Begin Date"] <= end_date)]
+    if "Work To Begin Date" in tickets.columns:
+        if start_date and end_date:
+            tickets = tickets[(pd.to_datetime(tickets["Work To Begin Date"]) >= start_date) & 
+                              (pd.to_datetime(tickets["Work To Begin Date"]) <= end_date)]
     if contractor:
         tickets = tickets[tickets["Excavator"].str.contains(contractor, case=False, na=False)]
     return tickets
