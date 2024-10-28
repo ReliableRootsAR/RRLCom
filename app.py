@@ -13,6 +13,7 @@ if "messages" not in st.session_state:
 
 @st.cache_data
 def load_data():
+    """Load open and closed tickets from Google Sheets."""
     try:
         open_tickets = pd.read_csv(open_tickets_url)
         closed_tickets = pd.read_csv(closed_tickets_url)
@@ -29,6 +30,7 @@ def load_data():
 open_tickets, closed_tickets = load_data()
 
 def plot_tickets_on_map(tickets):
+    """Plot tickets on a map."""
     m = folium.Map(location=[38.9717, -95.2353], zoom_start=12)
     for _, ticket in tickets.iterrows():
         try:
@@ -46,6 +48,7 @@ def plot_tickets_on_map(tickets):
     return m
 
 def send_message(ticket_num, sender, message, attachments):
+    """Send a new message or reply."""
     st.session_state["messages"].append({
         "ticket_num": ticket_num,
         "sender": sender,
@@ -54,7 +57,8 @@ def send_message(ticket_num, sender, message, attachments):
         "status": "Open"
     })
 
-def view_messages(ticket_num=None, status_filter=None):
+def view_messages(status_filter=None):
+    """Display messages grouped by ticket number."""
     messages = st.session_state["messages"]
     if status_filter:
         messages = [msg for msg in messages if msg["status"] == status_filter]
@@ -76,7 +80,11 @@ def view_messages(ticket_num=None, status_filter=None):
                 st.write("---")
 
             reply = st.text_area(f"Reply to Ticket {ticket}", key=f"reply_{ticket}")
-            attachments = st.file_uploader(f"Attach files to Ticket {ticket}", accept_multiple_files=True, key=f"attach_{ticket}")
+            attachments = st.file_uploader(
+                f"Attach files to Ticket {ticket}",
+                accept_multiple_files=True,
+                key=f"attach_{ticket}"
+            )
 
             if st.button(f"Send Reply for Ticket {ticket}", key=f"send_reply_{ticket}"):
                 send_message(ticket, "Reply", reply, attachments)
@@ -88,6 +96,7 @@ def view_messages(ticket_num=None, status_filter=None):
                 st.success(f"Ticket {ticket} closed.")
 
 def ticket_dashboard(tickets, role, key_prefix):
+    """Display ticket dashboard with list and map view."""
     tab1, tab2 = st.tabs(["List View", "Map View"])
 
     with tab1:
@@ -98,6 +107,7 @@ def ticket_dashboard(tickets, role, key_prefix):
         folium_static(map_view, width=800, height=400)
 
 def admin_dashboard():
+    """Admin dashboard with open and closed tickets."""
     st.title("Admin Dashboard")
 
     tab1, tab2 = st.tabs(["Open Tickets", "Closed Tickets"])
@@ -109,6 +119,7 @@ def admin_dashboard():
         ticket_dashboard(closed_tickets, "Admin", "admin_closed")
 
 def locator_dashboard(username):
+    """Locator dashboard for assigned tickets."""
     st.title(f"Locator Dashboard - {username}")
 
     locator_open = open_tickets[open_tickets["Assigned Name"] == username]
@@ -123,6 +134,7 @@ def locator_dashboard(username):
         ticket_dashboard(locator_closed, "Locator", f"locator_closed_{username}")
 
 def message_dashboard():
+    """Dedicated message dashboard."""
     st.title("Messages")
 
     tab1, tab2 = st.tabs(["Open Messages", "Closed Messages"])
@@ -134,10 +146,12 @@ def message_dashboard():
         view_messages(status_filter="Closed")
 
 def logout():
+    """Logout function to clear session state."""
     st.session_state.clear()
     st.session_state["logged_out"] = True
 
 def login():
+    """User login interface."""
     st.title("Login")
     username = st.text_input("Username", key="login_username")
     password = st.text_input("Password", type="password", key="login_password")
