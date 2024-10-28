@@ -33,51 +33,50 @@ def plot_tickets_on_map(tickets):
     m = folium.Map(location=[38.9717, -95.2353], zoom_start=12)
     for _, ticket in tickets.iterrows():
         try:
-            latitude = float(ticket["Latitude"])
-            longitude = float(ticket["Longitude"])
+            latitude = float(ticket.get("Latitude", 0))
+            longitude = float(ticket.get("Longitude", 0))
+            address = ticket.get("Address", "Not Available")
+            request_num = ticket.get("RequestNum", "Unknown")
+            excavator = ticket.get("Excavator", "Unknown")
+            status = ticket.get("Status", "Unknown")
+
             folium.Marker(
                 location=[latitude, longitude],
                 popup=(
-                    f"<b>RequestNum:</b> {ticket['RequestNum']}<br>"
-                    f"<b>Address:</b> {ticket['Address']}<br>"
-                    f"<b>Excavator:</b> {ticket['Excavator']}<br>"
-                    f"<b>Status:</b> {ticket['Status']}"
+                    f"<b>RequestNum:</b> {request_num}<br>"
+                    f"<b>Address:</b> {address}<br>"
+                    f"<b>Excavator:</b> {excavator}<br>"
+                    f"<b>Status:</b> {status}"
                 ),
-                tooltip=ticket["RequestNum"]
+                tooltip=request_num
             ).add_to(m)
         except ValueError:
-            st.warning(f"Skipping ticket with invalid coordinates.")
+            st.warning("Skipping ticket with invalid coordinates.")
     return m
 
-# Admin Dashboard
+# Admin Dashboard with Split List and Map View
 def admin_dashboard():
     st.title("Admin Dashboard")
 
-    tab1, tab2, tab3 = st.tabs(["Ticket List", "Map View", "Search"])
+    tab1, tab2 = st.tabs(["List View", "Map View"])
 
     with tab1:
-        st.subheader("All Tickets - List View")
-        all_tickets = pd.concat([open_tickets, closed_tickets])
-        st.dataframe(all_tickets)
+        st.subheader("Open Tickets - List View")
+        st.dataframe(open_tickets)
+
+        st.subheader("Closed Tickets - List View")
+        st.dataframe(closed_tickets)
 
     with tab2:
-        st.subheader("Tickets Map")
-        map_ = plot_tickets_on_map(open_tickets)
-        folium_static(map_, width=800, height=600)
+        st.subheader("Open Tickets - Map View")
+        open_map = plot_tickets_on_map(open_tickets)
+        folium_static(open_map, width=800, height=400)
 
-    with tab3:
-        st.subheader("Search Tickets by Number")
-        ticket_number = st.text_input("Enter Ticket Number")
-        if st.button("Search"):
-            result = all_tickets[all_tickets["RequestNum"] == ticket_number.strip()]
-            if not result.empty:
-                st.write(result)
-                map_ = plot_tickets_on_map(result)
-                folium_static(map_, width=800, height=400)
-            else:
-                st.warning("Ticket not found.")
+        st.subheader("Closed Tickets - Map View")
+        closed_map = plot_tickets_on_map(closed_tickets)
+        folium_static(closed_map, width=800, height=400)
 
-# Locator Dashboard with Open and Closed Tickets
+# Locator Dashboard with Open and Closed Tabs
 def locator_dashboard(username):
     st.title(f"Locator Dashboard - {username}")
 
@@ -129,7 +128,7 @@ def login():
 # Main App Flow
 if "role" not in st.session_state or st.session_state.get("logged_out", False):
     if "logged_out" in st.session_state:
-        del st.session_state["logged_out"]  # Remove the flag after handling it
+        del st.session_state["logged_out"]
     login()
 else:
     role = st.session_state["role"]
