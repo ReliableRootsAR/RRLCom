@@ -12,7 +12,6 @@ def load_data():
     """Load the ticket data from the Google Sheet."""
     try:
         data = pd.read_csv(sheet_url, dtype={"RequestNum": str})  # Ensure RequestNum is string
-        st.write("### Column Names", list(data.columns))  # Debugging: Display column names
         return data
     except Exception as e:
         st.error(f"Error loading data: {e}")
