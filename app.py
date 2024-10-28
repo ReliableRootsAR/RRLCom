@@ -14,6 +14,11 @@ def load_data():
     try:
         open_tickets = pd.read_csv(open_tickets_url)
         closed_tickets = pd.read_csv(closed_tickets_url)
+
+        # Display columns for debugging (Optional: remove this in production)
+        st.write("Open Tickets Columns:", open_tickets.columns)
+        st.write("Closed Tickets Columns:", closed_tickets.columns)
+
         return open_tickets, closed_tickets
     except Exception as e:
         st.error(f"Error loading data: {e}")
@@ -25,13 +30,13 @@ open_tickets, closed_tickets = load_data()
 # Filter tickets by user role
 def get_locator_tickets(username):
     """Return tickets assigned to or completed by the locator."""
-    assigned_tickets = open_tickets[open_tickets["Assigned To"] == username]
-    completed_tickets = closed_tickets[closed_tickets["Completed By"] == username]
+    assigned_tickets = open_tickets[open_tickets["Assigned Name"] == username] if "Assigned Name" in open_tickets.columns else pd.DataFrame()
+    completed_tickets = closed_tickets[closed_tickets["Completed By"] == username] if "Completed By" in closed_tickets.columns else pd.DataFrame()
     return pd.concat([assigned_tickets, completed_tickets])
 
 def get_contractor_tickets(username):
     """Return tickets for the contractor."""
-    return open_tickets[open_tickets["Excavator"] == username]
+    return open_tickets[open_tickets["Excavator"] == username] if "Excavator" in open_tickets.columns else pd.DataFrame()
 
 # Plot ticket on a map
 def plot_tickets_on_map(tickets):
@@ -59,10 +64,8 @@ def plot_tickets_on_map(tickets):
 def admin_dashboard():
     st.title("Admin Dashboard")
     st.write("View all tickets and manage user access.")
-
     st.subheader("Open Tickets")
     st.dataframe(open_tickets)
-
     st.subheader("Closed Tickets")
     st.dataframe(closed_tickets)
 
@@ -84,11 +87,11 @@ def contractor_dashboard(username):
 def login():
     st.title("Login")
 
-    # Display available usernames for testing (Remove this in production)
+    # Display available usernames for testing (Remove in production)
     st.write("### Available Usernames (For Testing)")
     st.write("Admins: admin")
-    st.write("Locators:", open_tickets["Assigned To"].unique())
-    st.write("Contractors:", open_tickets["Excavator"].unique())
+    st.write("Locators:", open_tickets["Assigned Name"].unique() if "Assigned Name" in open_tickets.columns else [])
+    st.write("Contractors:", open_tickets["Excavator"].unique() if "Excavator" in open_tickets.columns else [])
 
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
@@ -96,7 +99,7 @@ def login():
     if st.button("Login"):
         if username == "admin" and password == "admin123":
             st.session_state["role"] = "Admin"
-        elif username in open_tickets["Assigned To"].unique():
+        elif username in open_tickets["Assigned Name"].unique():
             st.session_state["role"] = "Locator"
             st.session_state["username"] = username
         elif username in open_tickets["Excavator"].unique():
