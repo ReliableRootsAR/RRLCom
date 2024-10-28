@@ -7,7 +7,7 @@ from streamlit_folium import folium_static
 open_tickets_url = "https://docs.google.com/spreadsheets/d/1a1YSAMCFsUJn-PBSKlcIiKgGjvZaz7hqZXXI_jWbUVc/export?format=csv"
 closed_tickets_url = "https://docs.google.com/spreadsheets/d/1Sa7qXR2oWtvYf9n1NRrSoI6EFWp31s7hqXBuQtvBF0Y/export?format=csv"
 
-# Initialize message storage
+# Initialize message storage in session state
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
 
@@ -18,6 +18,7 @@ def load_data():
         open_tickets = pd.read_csv(open_tickets_url)
         closed_tickets = pd.read_csv(closed_tickets_url)
 
+        # Clean ticket numbers
         open_tickets["RequestNum"] = open_tickets["RequestNum"].astype(str).str.replace(",", "")
         closed_tickets["RequestNum"] = closed_tickets["RequestNum"].astype(str).str.replace(",", "")
 
@@ -29,8 +30,8 @@ def load_data():
 open_tickets, closed_tickets = load_data()
 
 def plot_tickets_on_map(tickets):
-    """Plot filtered tickets on a map."""
-    m = folium.Map(location=[38.9717, -95.2353], zoom_start=12)
+    """Plot tickets on a map."""
+    m = folium.Map(location=[38.9717, -95.2353], zoom_start=12)  # Example: Lawrence, KS
     for _, ticket in tickets.iterrows():
         try:
             latitude = float(ticket.get("Latitude", 0))
@@ -47,7 +48,7 @@ def plot_tickets_on_map(tickets):
     return m
 
 def send_message(ticket_num, sender, message):
-    """Add a message to the session state."""
+    """Add a message to session state."""
     st.session_state["messages"].append({
         "ticket_num": ticket_num,
         "sender": sender,
@@ -58,16 +59,19 @@ def send_message(ticket_num, sender, message):
 def view_messages(ticket_num):
     """Display messages for a specific ticket."""
     messages = [msg for msg in st.session_state["messages"] if msg["ticket_num"] == ticket_num]
-    for msg in messages:
-        st.write(f"**{msg['sender']}**: {msg['message']} ({msg['status']})")
+    if messages:
+        for msg in messages:
+            st.write(f"**{msg['sender']}**: {msg['message']} ({msg['status']})")
+    else:
+        st.write("No messages found for this ticket.")
 
 def close_message(ticket_num):
-    """Mark all messages for a ticket as closed."""
+    """Mark messages for a ticket as closed."""
     for msg in st.session_state["messages"]:
         if msg["ticket_num"] == ticket_num:
             msg["status"] = "Closed"
 
-def ticket_dashboard(tickets, role):
+def ticket_dashboard(tickets, role, key_prefix):
     """Generic dashboard for viewing tickets."""
     tab1, tab2 = st.tabs(["List View", "Map View"])
 
@@ -78,31 +82,35 @@ def ticket_dashboard(tickets, role):
         map_view = plot_tickets_on_map(tickets)
         folium_static(map_view, width=800, height=400)
 
-    ticket_num = st.text_input("Enter Ticket Number to View Messages")
+    # Input field for viewing messages, with unique key
+    ticket_num = st.text_input(f"Enter Ticket Number to View Messages", 
+                               key=f"{key_prefix}_ticket_input")
+
     if ticket_num:
         view_messages(ticket_num)
 
-    if role == "Locator" or role == "Admin":
-        st.text_area("Enter your message", key="message_text")
-        if st.button("Send"):
-            message = st.session_state["message_text"]
+    if role in ["Locator", "Admin"]:
+        message = st.text_area("Enter your message", key=f"{key_prefix}_message_text")
+        if st.button("Send", key=f"{key_prefix}_send_button"):
             send_message(ticket_num, role, message)
             st.success("Message sent!")
 
 def admin_dashboard():
+    """Admin dashboard with open and closed tickets."""
     st.title("Admin Dashboard")
 
     tab1, tab2 = st.tabs(["Open Tickets", "Closed Tickets"])
 
     with tab1:
         st.subheader("Open Tickets")
-        ticket_dashboard(open_tickets, "Admin")
+        ticket_dashboard(open_tickets, "Admin", key_prefix="admin_open")
 
     with tab2:
         st.subheader("Closed Tickets")
-        ticket_dashboard(closed_tickets, "Admin")
+        ticket_dashboard(closed_tickets, "Admin", key_prefix="admin_closed")
 
 def locator_dashboard(username):
+    """Locator dashboard with assigned tickets."""
     st.title(f"Locator Dashboard - {username}")
 
     locator_open = open_tickets[open_tickets["Assigned Name"] == username]
@@ -112,22 +120,24 @@ def locator_dashboard(username):
 
     with tab1:
         st.subheader("Open Tickets")
-        ticket_dashboard(locator_open, "Locator")
+        ticket_dashboard(locator_open, "Locator", key_prefix=f"locator_open_{username}")
 
     with tab2:
         st.subheader("Closed Tickets")
-        ticket_dashboard(locator_closed, "Locator")
+        ticket_dashboard(locator_closed, "Locator", key_prefix=f"locator_closed_{username}")
 
 def logout():
+    """Clear session state and log out."""
     st.session_state.clear()
     st.session_state["logged_out"] = True
 
 def login():
+    """User login interface."""
     st.title("Login")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+    username = st.text_input("Username", key="login_username")
+    password = st.text_input("Password", type="password", key="login_password")
 
-    if st.button("Login"):
+    if st.button("Login", key="login_button"):
         if username == "admin" and password == "admin123":
             st.session_state["role"] = "Admin"
         elif username in open_tickets["Assigned Name"].unique():
@@ -137,8 +147,9 @@ def login():
             st.error("Invalid credentials")
 
     if "role" in st.session_state:
-        st.sidebar.button("Logout", on_click=logout)
+        st.sidebar.button("Logout", on_click=logout, key="sidebar_logout")
 
+# Main application logic
 if "role" not in st.session_state or st.session_state.get("logged_out", False):
     if "logged_out" in st.session_state:
         del st.session_state["logged_out"]
@@ -147,7 +158,7 @@ else:
     role = st.session_state["role"]
     username = st.session_state.get("username", "")
 
-    st.sidebar.button("Logout", on_click=logout)
+    st.sidebar.button("Logout", on_click=logout, key="main_logout")
 
     if role == "Admin":
         admin_dashboard()
