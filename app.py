@@ -57,53 +57,44 @@ def send_message(ticket_num, sender, message, attachments):
         "status": "Open"
     })
 
-def view_messages(status_filter=None):
-    """Display messages grouped by ticket number."""
-    messages = st.session_state["messages"]
-    if status_filter:
-        messages = [msg for msg in messages if msg["status"] == status_filter]
+def view_messages(ticket_num):
+    """View all messages for a specific ticket."""
+    messages = [msg for msg in st.session_state["messages"] if msg["ticket_num"] == ticket_num]
 
-    grouped_messages = {}
+    if not messages:
+        st.write("No messages for this ticket yet.")
+        return
+
     for msg in messages:
-        ticket = msg["ticket_num"]
-        if ticket not in grouped_messages:
-            grouped_messages[ticket] = []
-        grouped_messages[ticket].append(msg)
-
-    for ticket, msgs in grouped_messages.items():
-        with st.expander(f"Ticket {ticket} - {len(msgs)} message(s)"):
-            for msg in msgs:
-                st.write(f"**{msg['sender']}**: {msg['message']} ({msg['status']})")
-                if msg["attachments"]:
-                    for attachment in msg["attachments"]:
-                        st.write(f"📎 {attachment.name}")
-                st.write("---")
-
-            reply = st.text_area(f"Reply to Ticket {ticket}", key=f"reply_{ticket}")
-            attachments = st.file_uploader(
-                f"Attach files to Ticket {ticket}",
-                accept_multiple_files=True,
-                key=f"attach_{ticket}"
-            )
-
-            if st.button(f"Send Reply for Ticket {ticket}", key=f"send_reply_{ticket}"):
-                send_message(ticket, "Reply", reply, attachments)
-                st.success("Reply sent!")
-
-            if st.button(f"Close Ticket {ticket}", key=f"close_{ticket}"):
-                for msg in msgs:
-                    msg["status"] = "Closed"
-                st.success(f"Ticket {ticket} closed.")
+        st.write(f"**{msg['sender']}**: {msg['message']} ({msg['status']})")
+        if msg["attachments"]:
+            for attachment in msg["attachments"]:
+                st.write(f"📎 {attachment.name}")
+        st.write("---")
 
 def ticket_dashboard(tickets, role, key_prefix):
-    """Display ticket dashboard with list and map view."""
+    """Display ticket dashboard with search, list, and map views."""
+    search_term = st.text_input("Search by Contractor, Ticket Number, or Date", key=f"{key_prefix}_search")
+    filtered_tickets = tickets[tickets.apply(lambda row: search_term.lower() in str(row.values).lower(), axis=1)]
+
     tab1, tab2 = st.tabs(["List View", "Map View"])
 
     with tab1:
-        st.dataframe(tickets)
+        st.dataframe(filtered_tickets)
+
+        ticket_num = st.text_input("Enter Ticket Number to View Messages", key=f"{key_prefix}_ticket_num")
+        if ticket_num:
+            view_messages(ticket_num)
+
+            message = st.text_area("New Message", key=f"{key_prefix}_message")
+            attachments = st.file_uploader("Attach Files", accept_multiple_files=True, key=f"{key_prefix}_attachments")
+
+            if st.button("Send Message", key=f"{key_prefix}_send_message"):
+                send_message(ticket_num, role, message, attachments)
+                st.success("Message sent!")
 
     with tab2:
-        map_view = plot_tickets_on_map(tickets)
+        map_view = plot_tickets_on_map(filtered_tickets)
         folium_static(map_view, width=800, height=400)
 
 def admin_dashboard():
@@ -132,18 +123,6 @@ def locator_dashboard(username):
 
     with tab2:
         ticket_dashboard(locator_closed, "Locator", f"locator_closed_{username}")
-
-def message_dashboard():
-    """Dedicated message dashboard."""
-    st.title("Messages")
-
-    tab1, tab2 = st.tabs(["Open Messages", "Closed Messages"])
-
-    with tab1:
-        view_messages(status_filter="Open")
-
-    with tab2:
-        view_messages(status_filter="Closed")
 
 def logout():
     """Logout function to clear session state."""
@@ -182,5 +161,3 @@ else:
         admin_dashboard()
     elif role == "Locator":
         locator_dashboard(username)
-
-    st.sidebar.button("Messages", on_click=message_dashboard)
