@@ -15,9 +15,9 @@ def load_data():
         open_tickets = pd.read_csv(open_tickets_url)
         closed_tickets = pd.read_csv(closed_tickets_url)
 
-        # Optional: Display column names for debugging (remove later if not needed)
-        st.write("Open Tickets Columns:", open_tickets.columns)
-        st.write("Closed Tickets Columns:", closed_tickets.columns)
+        # Ensure ticket numbers are strings without commas
+        open_tickets["Request Num"] = open_tickets["Request Num"].astype(str).str.replace(",", "")
+        closed_tickets["Request Num"] = closed_tickets["Request Num"].astype(str).str.replace(",", "")
 
         return open_tickets, closed_tickets
     except Exception as e:
@@ -49,13 +49,34 @@ def plot_tickets_on_map(tickets):
             st.warning(f"Skipping ticket with invalid coordinates.")
     return m
 
-# Admin Dashboard
+# Admin Dashboard with Ticket List, Map View, and Search Bar
 def admin_dashboard():
     st.title("Admin Dashboard")
-    st.subheader("Open Tickets")
-    st.dataframe(open_tickets)
-    st.subheader("Closed Tickets")
-    st.dataframe(closed_tickets)
+
+    # Tabs for different views
+    tab1, tab2, tab3 = st.tabs(["Ticket List", "Map View", "Search"])
+
+    with tab1:
+        st.subheader("All Tickets - List View")
+        all_tickets = pd.concat([open_tickets, closed_tickets])
+        st.dataframe(all_tickets)
+
+    with tab2:
+        st.subheader("Tickets Map")
+        map_ = plot_tickets_on_map(open_tickets)
+        folium_static(map_, width=800, height=600)
+
+    with tab3:
+        st.subheader("Search Tickets by Number")
+        ticket_number = st.text_input("Enter Ticket Number")
+        if st.button("Search"):
+            result = all_tickets[all_tickets["Request Num"] == ticket_number.strip()]
+            if not result.empty:
+                st.write(result)
+                map_ = plot_tickets_on_map(result)
+                folium_static(map_, width=800, height=400)
+            else:
+                st.warning("Ticket not found.")
 
 # Locator Dashboard
 def locator_dashboard(username):
@@ -72,15 +93,14 @@ def contractor_dashboard(username):
     st.write("Tickets associated with your organization.")
     st.dataframe(contractor_tickets)
 
+# Logout Functionality
+def logout():
+    st.session_state.clear()
+    st.experimental_rerun()
+
 # Login Page
 def login():
     st.title("Login")
-
-    # Optional: Display available usernames for testing (remove later)
-    st.write("### Available Usernames (For Testing)")
-    st.write("Admins: admin")
-    st.write("Locators:", open_tickets["Assigned Name"].unique())
-    st.write("Contractors:", open_tickets["Excavator"].unique())
 
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
@@ -97,12 +117,19 @@ def login():
         else:
             st.error("Invalid credentials")
 
+    # Add a Logout Button
+    if "role" in st.session_state:
+        if st.button("Logout"):
+            logout()
+
 # Main App Flow
 if "role" not in st.session_state:
     login()
 else:
     role = st.session_state["role"]
     username = st.session_state.get("username", "")
+
+    st.sidebar.button("Logout", on_click=logout)
 
     if role == "Admin":
         admin_dashboard()
