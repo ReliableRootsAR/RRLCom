@@ -11,17 +11,21 @@ sheet_url = "https://docs.google.com/spreadsheets/d/1a1YSAMCFsUJn-PBSKlcIiKgGjvZ
 def load_data():
     """Load the ticket data from the Google Sheet."""
     try:
-        data = pd.read_csv(sheet_url, dtype={"RequestNum": str})  # Ensure RequestNum is string
+        data = pd.read_csv(sheet_url, dtype={"RequestNum": str})  # Ensure RequestNum is a string
         return data
     except Exception as e:
         st.error(f"Error loading data: {e}")
         return pd.DataFrame()
 
+# Initialize session state to track the selected ticket
+if "selected_ticket" not in st.session_state:
+    st.session_state["selected_ticket"] = None
+
 # Load the data
 data = load_data()
 
 # Function to plot all tickets on a map
-def plot_all_tickets(tickets, selected_ticket=None):
+def plot_all_tickets(tickets):
     """Create a map with markers for all tickets."""
     map_center = [38.9717, -95.2353]  # Default map center (Lawrence, KS)
     m = folium.Map(location=map_center, zoom_start=12)
@@ -36,48 +40,29 @@ def plot_all_tickets(tickets, selected_ticket=None):
             excavator = ticket.get("Excavator", "No excavator available")
             work_type = ticket.get("TypeOfWork", "No work type available")
 
-            # Create popup content
-            popup_content = (
+            # Create popup content with a JS function to update session state
+            popup_content = folium.Popup(
                 f"<b>RequestNum:</b> {request_num}<br>"
                 f"<b>Excavator:</b> {excavator}<br>"
-                f"<b>Type of Work:</b> {work_type}"
+                f"<b>Type of Work:</b> {work_type}<br>"
+                f'<button onclick="window.location.href=\'?selected={request_num}\'">Select Ticket</button>',
+                max_width=300
             )
 
-            marker = folium.Marker(
+            folium.Marker(
                 location=[latitude, longitude],
                 popup=popup_content,
                 tooltip=f"Ticket: {request_num}"
-            )
-
-            # If this ticket is the selected one, pan the map to its location
-            if selected_ticket and request_num == selected_ticket:
-                m.location = [latitude, longitude]
-                m.zoom_start = 15
-
-            marker.add_to(m)
+            ).add_to(m)
 
         except (ValueError, KeyError) as e:
             st.warning(f"Skipping ticket due to invalid data: {e}")
 
     return m
 
-# Function to handle messaging
-def message_section(selected_ticket):
-    """Send a message tied to the selected ticket."""
-    st.subheader(f"Send a Message for Ticket: {selected_ticket}")
-    
-    message = st.text_area("Enter your message:", "")
-    attachments = st.file_uploader("Attach files:", accept_multiple_files=True)
-    
-    if st.button("Send Message"):
-        if message or attachments:
-            # Simulate sending the message
-            st.success(f"Message sent for Ticket {selected_ticket}.")
-            if attachments:
-                for file in attachments:
-                    st.write(f"Attached: {file.name}")
-        else:
-            st.warning("Please enter a message or attach a file.")
+# Update session state when a ticket is clicked in the list
+def on_ticket_select(request_num):
+    st.session_state["selected_ticket"] = request_num
 
 # Streamlit App UI
 st.title("RRLCom - Ticket Management System")
@@ -92,32 +77,39 @@ menu_option = st.sidebar.selectbox(
 if menu_option == "List View":
     # List View: Display all tickets in a scrollable table
     st.header("All Tickets")
-    st.dataframe(data)  # Display all tickets in a DataFrame-like view
+    st.dataframe(data)
 
 elif menu_option == "Map/List View":
     # Map/List View: Ticket List on top, Map on bottom
     st.header("Map/List View")
 
-    # Top: Ticket List (Scrollable)
+    # Top: Ticket List (Clickable)
     with st.container():
         st.subheader("Ticket List")
-        clicked_ticket = st.dataframe(data, height=200)  # Scrollable table for all tickets
+        for i, row in data.iterrows():
+            if st.button(f"{row['RequestNum']} - {row['Excavator']}"):
+                on_ticket_select(row["RequestNum"])
 
-    # Allow the user to select a ticket by clicking on a row
-    selected_ticket = st.selectbox(
-        "Select a Ticket:",
-        data["RequestNum"]
-    )
+    # Get the selected ticket from session state
+    selected_ticket = st.session_state.get("selected_ticket")
 
     # Bottom: Map of Tickets
     with st.container():
         st.subheader("Tickets Map")
-        map_ = plot_all_tickets(data, selected_ticket=selected_ticket)  # Plot with selected ticket
-        folium_static(map_, width=800, height=400)  # Adjust map size
+        map_ = plot_all_tickets(data)
+        folium_static(map_, width=800, height=400)
 
     # Message Section
     if selected_ticket:
-        message_section(selected_ticket)
+        st.subheader(f"Send a Message for Ticket: {selected_ticket}")
+        message = st.text_area("Enter your message:")
+        attachments = st.file_uploader("Attach files:", accept_multiple_files=True)
+        
+        if st.button("Send Message"):
+            st.success(f"Message sent for Ticket {selected_ticket}.")
+            if attachments:
+                for file in attachments:
+                    st.write(f"Attached: {file.name}")
 
 elif menu_option == "Search Ticket":
     # Search Ticket Section
