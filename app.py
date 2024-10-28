@@ -71,7 +71,7 @@ def message_section(selected_ticket):
     
     if st.button("Send Message"):
         if message or attachments:
-            # This is where you'd handle sending the message or saving it
+            # Simulate sending the message
             st.success(f"Message sent for Ticket {selected_ticket}.")
             if attachments:
                 for file in attachments:
@@ -98,14 +98,13 @@ elif menu_option == "Map/List View":
     # Map/List View: Ticket List on top, Map on bottom
     st.header("Map/List View")
 
-    # Top: Ticket List
+    # Top: Ticket List (Scrollable)
     with st.container():
         st.subheader("Ticket List")
-        selected_ticket = st.selectbox("Select a Ticket:", data["RequestNum"])
-        ticket_details = data[data["RequestNum"] == selected_ticket].iloc[0]
-        st.write(f"### Ticket Details for {selected_ticket}")
-        for key, value in ticket_details.items():
-            st.write(f"**{key}:** {value}")
+        clicked_ticket = st.experimental_data_editor(data, height=200)  # Interactive table
+
+    # Get the selected ticket from the interactive table
+    selected_ticket = clicked_ticket.iloc[0]["RequestNum"] if not clicked_ticket.empty else None
 
     # Bottom: Map of Tickets
     with st.container():
@@ -114,7 +113,8 @@ elif menu_option == "Map/List View":
         folium_static(map_, width=800, height=400)  # Adjust map size
 
     # Message Section
-    message_section(selected_ticket)
+    if selected_ticket:
+        message_section(selected_ticket)
 
 elif menu_option == "Search Ticket":
     # Search Ticket Section
