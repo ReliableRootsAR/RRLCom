@@ -52,15 +52,15 @@ def plot_tickets_on_map(tickets):
 
 def search_tickets(tickets, date_column, start_date, end_date, contractor):
     """Filter tickets by the date column and contractor."""
-    # Convert the date column to datetime, ignoring timezones
-    tickets[date_column] = pd.to_datetime(tickets[date_column], errors='coerce').dt.normalize()
+    # Ensure consistent datetime format with UTC timezone
+    tickets[date_column] = pd.to_datetime(tickets[date_column], errors='coerce').dt.tz_localize(None)
 
     # Drop rows with invalid dates (NaT)
     tickets = tickets.dropna(subset=[date_column])
 
-    # Normalize input dates to remove any time component
-    start_date = pd.to_datetime(start_date).normalize()
-    end_date = pd.to_datetime(end_date).normalize()
+    # Convert input dates to datetime format (no timezone)
+    start_date = pd.to_datetime(start_date).replace(tzinfo=None)
+    end_date = pd.to_datetime(end_date).replace(tzinfo=None)
 
     # Filter by date range
     if start_date and end_date:
