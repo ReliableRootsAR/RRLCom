@@ -56,14 +56,21 @@ def send_message(ticket_num, sender, message):
         "status": "Open"
     })
 
-def view_messages(ticket_num):
-    """Display messages for a specific ticket."""
-    messages = [msg for msg in st.session_state["messages"] if msg["ticket_num"] == ticket_num]
+def view_messages(ticket_num=None, status_filter=None):
+    """Display messages with optional filtering."""
+    messages = st.session_state["messages"]
+    
+    if ticket_num:
+        messages = [msg for msg in messages if msg["ticket_num"] == ticket_num]
+    
+    if status_filter:
+        messages = [msg for msg in messages if msg["status"] == status_filter]
+
     if messages:
         for msg in messages:
-            st.write(f"**{msg['sender']}**: {msg['message']} ({msg['status']})")
+            st.write(f"**{msg['sender']}** (Ticket {msg['ticket_num']}): {msg['message']} ({msg['status']})")
     else:
-        st.write("No messages found for this ticket.")
+        st.write("No messages found.")
 
 def close_message(ticket_num):
     """Mark messages for a ticket as closed."""
@@ -126,6 +133,20 @@ def locator_dashboard(username):
         st.subheader("Closed Tickets")
         ticket_dashboard(locator_closed, "Locator", key_prefix=f"locator_closed_{username}")
 
+def message_dashboard():
+    """Dedicated dashboard for viewing open and closed messages."""
+    st.title("Messages")
+
+    tab1, tab2 = st.tabs(["Open Messages", "Closed Messages"])
+
+    with tab1:
+        st.subheader("Open Messages")
+        view_messages(status_filter="Open")
+
+    with tab2:
+        st.subheader("Closed Messages")
+        view_messages(status_filter="Closed")
+
 def logout():
     """Clear session state and log out."""
     st.session_state.clear()
@@ -164,3 +185,6 @@ else:
         admin_dashboard()
     elif role == "Locator":
         locator_dashboard(username)
+
+    # Messaging section available to all roles
+    st.sidebar.button("Messages", on_click=message_dashboard)
