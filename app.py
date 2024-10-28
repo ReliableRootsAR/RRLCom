@@ -20,38 +20,34 @@ def load_data():
 # Load the data
 data = load_data()
 
-# Function to plot all tickets on a map
-def plot_all_tickets(tickets):
-    """Create a map with markers for all tickets."""
-    map_center = [38.9717, -95.2353]  # Default map center (Lawrence, KS)
-    m = folium.Map(location=map_center, zoom_start=12)
+# Function to plot a single ticket on a map
+def plot_ticket_on_map(ticket):
+    """Create a map centered on the given ticket."""
+    latitude = float(ticket["Latitude"])
+    longitude = float(ticket["Longitude"])
 
-    for _, ticket in tickets.iterrows():
-        try:
-            latitude = float(ticket["Latitude"])
-            longitude = float(ticket["Longitude"])
+    # Create a map centered on the ticket location
+    m = folium.Map(location=[latitude, longitude], zoom_start=15)
 
-            # Extract relevant ticket details
-            request_num = ticket["RequestNum"]
-            excavator = ticket.get("Excavator", "N/A")
-            work_type = ticket.get("TypeOfWork", "N/A")
+    # Extract relevant ticket details
+    request_num = ticket["RequestNum"]
+    excavator = ticket.get("Excavator", "N/A")
+    work_type = ticket.get("TypeOfWork", "N/A")
 
-            # Create popup content
-            popup_content = folium.Popup(
-                f"<b>RequestNum:</b> {request_num}<br>"
-                f"<b>Excavator:</b> {excavator}<br>"
-                f"<b>Type of Work:</b> {work_type}",
-                max_width=300
-            )
+    # Create popup content
+    popup_content = folium.Popup(
+        f"<b>RequestNum:</b> {request_num}<br>"
+        f"<b>Excavator:</b> {excavator}<br>"
+        f"<b>Type of Work:</b> {work_type}",
+        max_width=300
+    )
 
-            folium.Marker(
-                location=[latitude, longitude],
-                popup=popup_content,
-                tooltip=f"Ticket: {request_num}"
-            ).add_to(m)
-
-        except (ValueError, KeyError) as e:
-            st.warning(f"Skipping ticket due to invalid data: {e}")
+    # Add a marker to the map
+    folium.Marker(
+        location=[latitude, longitude],
+        popup=popup_content,
+        tooltip=f"Ticket: {request_num}"
+    ).add_to(m)
 
     return m
 
@@ -73,7 +69,16 @@ if menu_option == "List View":
 elif menu_option == "Map View":
     # Map View: Display all tickets on a map
     st.header("Tickets Map")
-    map_ = plot_all_tickets(data)  # Plot all tickets
+    map_ = folium.Map(location=[38.9717, -95.2353], zoom_start=12)
+    for _, ticket in data.iterrows():
+        try:
+            folium.Marker(
+                location=[float(ticket["Latitude"]), float(ticket["Longitude"])],
+                popup=f"<b>RequestNum:</b> {ticket['RequestNum']}",
+                tooltip=f"Ticket: {ticket['RequestNum']}"
+            ).add_to(map_)
+        except (ValueError, KeyError):
+            st.warning(f"Skipping ticket due to missing or invalid coordinates.")
     folium_static(map_, width=800, height=600)
 
 elif menu_option == "Search Ticket":
@@ -85,9 +90,16 @@ elif menu_option == "Search Ticket":
         try:
             ticket_details = data[data["RequestNum"] == ticket_number.strip()]
             if not ticket_details.empty:
+                # Display ticket details
                 st.write("### Ticket Details")
                 for key, value in ticket_details.iloc[0].items():
                     st.write(f"**{key}:** {value}")
+
+                # Display a map for the ticket
+                st.write("### Ticket Location")
+                map_ = plot_ticket_on_map(ticket_details.iloc[0])
+                folium_static(map_, width=800, height=400)
+
             else:
                 st.warning("Ticket not found.")
         except KeyError:
