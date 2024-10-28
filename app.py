@@ -11,7 +11,7 @@ sheet_url = "https://docs.google.com/spreadsheets/d/1a1YSAMCFsUJn-PBSKlcIiKgGjvZ
 def load_data():
     """Load the ticket data from the Google Sheet."""
     try:
-        data = pd.read_csv(sheet_url, dtype={"RequestNum": str})  # Ensure RequestNum is a string
+        data = pd.read_csv(sheet_url, dtype={"RequestNum": str})  # Ensure RequestNum is string
         return data
     except Exception as e:
         st.error(f"Error loading data: {e}")
@@ -101,10 +101,13 @@ elif menu_option == "Map/List View":
     # Top: Ticket List (Scrollable)
     with st.container():
         st.subheader("Ticket List")
-        clicked_ticket = st.experimental_data_editor(data, height=200)  # Interactive table
+        clicked_ticket = st.dataframe(data, height=200)  # Scrollable table for all tickets
 
-    # Get the selected ticket from the interactive table
-    selected_ticket = clicked_ticket.iloc[0]["RequestNum"] if not clicked_ticket.empty else None
+    # Allow the user to select a ticket by clicking on a row
+    selected_ticket = st.selectbox(
+        "Select a Ticket:",
+        data["RequestNum"]
+    )
 
     # Bottom: Map of Tickets
     with st.container():
