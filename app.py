@@ -11,27 +11,18 @@ sheet_url = "https://docs.google.com/spreadsheets/d/1a1YSAMCFsUJn-PBSKlcIiKgGjvZ
 def load_data():
     """Load the ticket data from the Google Sheet."""
     try:
-        data = pd.read_csv(sheet_url, dtype={"RequestNum": str})  # Ensure RequestNum is a string
-        st.write("### Column Names", list(data.columns))  # Debug: Print column names
+        data = pd.read_csv(sheet_url, dtype={"RequestNum": str})  # Ensure RequestNum is string
+        st.write("### Column Names", list(data.columns))  # Debugging: Display column names
         return data
     except Exception as e:
         st.error(f"Error loading data: {e}")
         return pd.DataFrame()
 
-# Initialize session state to track the selected ticket
-if "selected_ticket" not in st.session_state:
-    st.session_state["selected_ticket"] = None
-
 # Load the data
 data = load_data()
 
-# Check for missing columns and handle gracefully
-def get_safe_column(df, column_name):
-    """Retrieve a column if it exists, otherwise return a default value."""
-    return df[column_name] if column_name in df.columns else "Not Available"
-
 # Function to plot all tickets on a map
-def plot_all_tickets(tickets, selected_ticket=None):
+def plot_all_tickets(tickets):
     """Create a map with markers for all tickets."""
     map_center = [38.9717, -95.2353]  # Default map center (Lawrence, KS)
     m = folium.Map(location=map_center, zoom_start=12)
@@ -43,8 +34,8 @@ def plot_all_tickets(tickets, selected_ticket=None):
 
             # Extract relevant ticket details
             request_num = ticket["RequestNum"]
-            excavator = get_safe_column(ticket, "Excavator")
-            work_type = get_safe_column(ticket, "TypeOfWork")
+            excavator = ticket.get("Excavator", "N/A")
+            work_type = ticket.get("TypeOfWork", "N/A")
 
             # Create popup content
             popup_content = folium.Popup(
@@ -54,39 +45,16 @@ def plot_all_tickets(tickets, selected_ticket=None):
                 max_width=300
             )
 
-            marker = folium.Marker(
+            folium.Marker(
                 location=[latitude, longitude],
                 popup=popup_content,
                 tooltip=f"Ticket: {request_num}"
-            )
-
-            # Highlight the selected ticket by panning to it
-            if selected_ticket and request_num == selected_ticket:
-                m.location = [latitude, longitude]
-                m.zoom_start = 15
-
-            marker.add_to(m)
+            ).add_to(m)
 
         except (ValueError, KeyError) as e:
             st.warning(f"Skipping ticket due to invalid data: {e}")
 
     return m
-
-# Function to handle message sending
-def message_section(selected_ticket):
-    """Send a message tied to the selected ticket."""
-    st.subheader(f"Send a Message for Ticket: {selected_ticket}")
-    message = st.text_area("Enter your message:")
-    attachments = st.file_uploader("Attach files:", accept_multiple_files=True)
-
-    if st.button("Send Message"):
-        if message or attachments:
-            st.success(f"Message sent for Ticket {selected_ticket}.")
-            if attachments:
-                for file in attachments:
-                    st.write(f"Attached: {file.name}")
-        else:
-            st.warning("Please enter a message or attach a file.")
 
 # Streamlit App UI
 st.title("RRLCom - Ticket Management System")
@@ -95,48 +63,19 @@ st.title("RRLCom - Ticket Management System")
 st.sidebar.title("Navigation")
 menu_option = st.sidebar.selectbox(
     "Select an option:",
-    ["List View", "Map/List View", "Search Ticket", "Messages"]
+    ["List View", "Map View", "Search Ticket", "Messages"]
 )
 
 if menu_option == "List View":
-    # List View: Display all tickets with detailed information
+    # List View: Display all tickets in a scrollable table
     st.header("All Tickets")
-    st.write(data)  # Display the entire dataset for now
+    st.dataframe(data)  # Display the entire dataset
 
-elif menu_option == "Map/List View":
-    # Map/List View: Ticket List on top, Map on bottom
-    st.header("Map/List View")
-
-    # Top: Ticket List with relevant info (if available)
-    with st.container():
-        st.subheader("Ticket List")
-
-        # Extract relevant columns or fall back to a default message
-        ticket_info = data[["RequestNum"]]  # Start with RequestNum
-        if "Excavator" in data.columns:
-            ticket_info["Excavator"] = data["Excavator"]
-        if "TypeOfWork" in data.columns:
-            ticket_info["TypeOfWork"] = data["TypeOfWork"]
-
-        # Display the ticket information in a table
-        st.dataframe(ticket_info, height=300)
-
-        # Get the selected ticket from the first row if session state is empty
-        if st.session_state["selected_ticket"] is None and not data.empty:
-            st.session_state["selected_ticket"] = data["RequestNum"].iloc[0]
-
-    # Get the selected ticket from session state
-    selected_ticket = st.session_state["selected_ticket"]
-
-    # Bottom: Map of Tickets
-    with st.container():
-        st.subheader("Tickets Map")
-        map_ = plot_all_tickets(data, selected_ticket=selected_ticket)  # Plot with selected ticket
-        folium_static(map_, width=800, height=400)
-
-    # Message Section
-    if selected_ticket:
-        message_section(selected_ticket)
+elif menu_option == "Map View":
+    # Map View: Display all tickets on a map
+    st.header("Tickets Map")
+    map_ = plot_all_tickets(data)  # Plot all tickets
+    folium_static(map_, width=800, height=600)
 
 elif menu_option == "Search Ticket":
     # Search Ticket Section
