@@ -12,6 +12,7 @@ def load_data():
     """Load the ticket data from the Google Sheet."""
     try:
         data = pd.read_csv(sheet_url, dtype={"RequestNum": str})  # Ensure RequestNum is a string
+        st.write("### Column Names", list(data.columns))  # Debug: Print column names
         return data
     except Exception as e:
         st.error(f"Error loading data: {e}")
@@ -23,6 +24,11 @@ if "selected_ticket" not in st.session_state:
 
 # Load the data
 data = load_data()
+
+# Check for missing columns and handle gracefully
+def get_safe_column(df, column_name):
+    """Retrieve a column if it exists, otherwise return a default value."""
+    return df[column_name] if column_name in df.columns else "Not Available"
 
 # Function to plot all tickets on a map
 def plot_all_tickets(tickets, selected_ticket=None):
@@ -37,8 +43,8 @@ def plot_all_tickets(tickets, selected_ticket=None):
 
             # Extract relevant ticket details
             request_num = ticket["RequestNum"]
-            excavator = ticket.get("Excavator", "No excavator available")
-            work_type = ticket.get("TypeOfWork", "No work type available")
+            excavator = get_safe_column(ticket, "Excavator")
+            work_type = get_safe_column(ticket, "TypeOfWork")
 
             # Create popup content
             popup_content = folium.Popup(
@@ -101,12 +107,21 @@ elif menu_option == "Map/List View":
     # Map/List View: Ticket List on top, Map on bottom
     st.header("Map/List View")
 
-    # Top: Ticket List (With More Info)
+    # Top: Ticket List with relevant info (if available)
     with st.container():
         st.subheader("Ticket List")
-        selected_ticket_row = st.dataframe(data[["RequestNum", "Excavator", "TypeOfWork"]], height=300)
 
-        # Extract the selected ticket's ID if clicked
+        # Extract relevant columns or fall back to a default message
+        ticket_info = data[["RequestNum"]]  # Start with RequestNum
+        if "Excavator" in data.columns:
+            ticket_info["Excavator"] = data["Excavator"]
+        if "TypeOfWork" in data.columns:
+            ticket_info["TypeOfWork"] = data["TypeOfWork"]
+
+        # Display the ticket information in a table
+        st.dataframe(ticket_info, height=300)
+
+        # Get the selected ticket from the first row if session state is empty
         if st.session_state["selected_ticket"] is None and not data.empty:
             st.session_state["selected_ticket"] = data["RequestNum"].iloc[0]
 
