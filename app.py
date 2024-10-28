@@ -12,6 +12,8 @@ def load_data():
     """Load the ticket data from the Google Sheet."""
     try:
         data = pd.read_csv(sheet_url, dtype={"RequestNum": str})  # Ensure RequestNum is string
+        st.write("### Column Names")
+        st.write(data.columns)  # Display the column names for debugging
         return data
     except Exception as e:
         st.error(f"Error loading data: {e}")
@@ -28,17 +30,27 @@ def plot_all_tickets(tickets):
 
     for _, ticket in tickets.iterrows():
         try:
+            # Extract latitude and longitude
             latitude = float(ticket["Latitude"])
             longitude = float(ticket["Longitude"])
+
+            # Safely retrieve other fields with fallback for missing data
+            request_num = ticket.get("RequestNum", "N/A")
+            description = ticket.get("Description", "No description available")
+            status = ticket.get("Status", "No status available")
+
+            # Create popup content
             popup_content = (
-                f"<b>RequestNum:</b> {ticket['RequestNum']}<br>"
-                f"<b>Description:</b> {ticket['Description']}<br>"
-                f"<b>Status:</b> {ticket['Status']}"
+                f"<b>RequestNum:</b> {request_num}<br>"
+                f"<b>Description:</b> {description}<br>"
+                f"<b>Status:</b> {status}"
             )
+
+            # Add a marker to the map
             folium.Marker(
                 location=[latitude, longitude],
                 popup=popup_content,
-                tooltip=f"Ticket: {ticket['RequestNum']}"
+                tooltip=f"Ticket: {request_num}"
             ).add_to(m)
         except (ValueError, KeyError) as e:
             st.warning(f"Skipping ticket due to invalid data: {e}")
