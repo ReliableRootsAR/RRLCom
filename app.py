@@ -10,7 +10,16 @@ sheet_url = "https://docs.google.com/spreadsheets/d/1a1YSAMCFsUJn-PBSKlcIiKgGjvZ
 @st.cache_data
 def load_data():
     """Load the ticket data from the Google Sheet."""
-    return pd.read_csv(sheet_url)
+    try:
+        data = pd.read_csv(sheet_url)
+        st.write("### Data Preview")
+        st.write(data.head())  # Display the first few rows of data
+        st.write("### Column Names")
+        st.write(data.columns)  # Display the exact column names
+        return data
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+        return pd.DataFrame()  # Return an empty DataFrame if loading fails
 
 # Load the data from the Google Sheet
 data = load_data()
@@ -18,25 +27,39 @@ data = load_data()
 # Function to search for ticket details by ticket number
 def get_ticket_details(ticket_number):
     """Retrieve ticket details based on ticket number."""
-    ticket = data[data["Ticket Number"].astype(str) == ticket_number]
-    if ticket.empty:
+    try:
+        # Check for exact column name match
+        column_name = "Ticket Number"
+        if column_name not in data.columns:
+            st.error(f"Column '{column_name}' not found. Check the column names above.")
+            return None
+
+        ticket = data[data[column_name].astype(str) == ticket_number]
+        if ticket.empty:
+            return None
+        return ticket.iloc[0].to_dict()
+    except Exception as e:
+        st.error(f"Error retrieving ticket details: {e}")
         return None
-    return ticket.iloc[0].to_dict()
 
 # Function to plot tickets on a map
 def plot_map(tickets):
     """Create a map with markers for active tickets."""
-    map_center = [38.9717, -95.2353]  # Example: Lawrence, KS
-    m = folium.Map(location=map_center, zoom_start=12)
+    try:
+        map_center = [38.9717, -95.2353]  # Example: Lawrence, KS
+        m = folium.Map(location=map_center, zoom_start=12)
 
-    for _, ticket in tickets.iterrows():
-        folium.Marker(
-            location=[ticket["Latitude"], ticket["Longitude"]],
-            popup=f'Ticket: {ticket["Ticket Number"]}',
-            tooltip=ticket["Description"],
-        ).add_to(m)
+        for _, ticket in tickets.iterrows():
+            folium.Marker(
+                location=[ticket["Latitude"], ticket["Longitude"]],
+                popup=f'Ticket: {ticket["Ticket Number"]}',
+                tooltip=ticket["Description"],
+            ).add_to(m)
 
-    return m
+        return m
+    except KeyError as e:
+        st.error(f"Missing column for map: {e}")
+        return None
 
 # Streamlit App UI
 st.title("RRLCom - Ticket Management System")
@@ -65,10 +88,14 @@ if menu_option == "Search Ticket":
 elif menu_option == "Active Tickets Map":
     # Active Tickets Map Section
     st.header("Active Tickets Map")
-    active_tickets = data[data["Status"] == "Active"]
-
-    if active_tickets.empty:
-        st.warning("No active tickets available.")
+    if "Status" not in data.columns:
+        st.error("Column 'Status' not found in the data.")
     else:
-        st_folium(plot_map(active_tickets))
+        active_tickets = data[data["Status"] == "Active"]
 
+        if active_tickets.empty:
+            st.warning("No active tickets available.")
+        else:
+            map_ = plot_map(active_tickets)
+            if map_:
+                st_folium(map_)
