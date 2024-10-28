@@ -1,52 +1,30 @@
 import streamlit as st
+import pandas as pd
 
-# Sidebar menu
-st.sidebar.title("RRLCom Navigation")
-option = st.sidebar.selectbox(
-    "Select a section:",
-    ["Home", "Submit Ticket", "View Tickets", "Messages"]
-)
+# Public Google Sheet URL (replace 'edit' with 'export?format=csv' to get CSV data)
+sheet_url = "https://docs.google.com/spreadsheets/d/1a1YSAMCFsUJn-PBSKlcIiKgGjvZaz7hqZXXI_jWbUVc/export?format=csv"
 
-# Store submitted tickets in session state (temporary storage)
-if "tickets" not in st.session_state:
-    st.session_state["tickets"] = []
+# Load the data into a DataFrame
+@st.cache_data
+def load_data():
+    return pd.read_csv(sheet_url)
 
-# Home Section
-if option == "Home":
-    st.title("RRLCom - Locator & Contractor Communication App")
-    st.write("Welcome to the Reliable Roots Locating communication platform!")
+data = load_data()
 
-# Submit Ticket Section
-elif option == "Submit Ticket":
-    st.title("Submit a New Ticket")
-    contractor_name = st.text_input("Contractor Name")
-    location = st.text_input("Location of Work")
-    description = st.text_area("Description of Work")
+# Search for ticket details by ticket number
+def get_ticket_details(ticket_number):
+    ticket = data[data["Ticket Number"].astype(str) == ticket_number]
+    if ticket.empty:
+        return None
+    return ticket.iloc[0].to_dict()
 
-    if st.button("Submit Ticket"):
-        st.session_state["tickets"].append({
-            "contractor": contractor_name,
-            "location": location,
-            "description": description
-        })
-        st.success("Ticket submitted successfully!")
+# Streamlit UI
+st.title("RRLCom - Ticket Search")
 
-# View Tickets Section
-elif option == "View Tickets":
-    st.title("View Submitted Tickets")
-    if len(st.session_state["tickets"]) == 0:
-        st.warning("No tickets submitted yet.")
+ticket_number = st.text_input("Enter Ticket Number")
+if st.button("Search Ticket"):
+    ticket_details = get_ticket_details(ticket_number)
+    if ticket_details:
+        st.write(ticket_details)
     else:
-        for i, ticket in enumerate(st.session_state["tickets"]):
-            st.write(f"### Ticket {i + 1}")
-            st.write(f"**Contractor:** {ticket['contractor']}")
-            st.write(f"**Location:** {ticket['location']}")
-            st.write(f"**Description:** {ticket['description']}")
-            st.write("---")
-
-# Messages Section
-elif option == "Messages":
-    st.title("Message Board")
-    message = st.text_area("Enter your message")
-    if st.button("Send Message"):
-        st.success(f"Message sent: {message}")
+        st.warning("Ticket not found.")
