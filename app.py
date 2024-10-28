@@ -10,12 +10,10 @@ closed_tickets_url = "https://docs.google.com/spreadsheets/d/1Sa7qXR2oWtvYf9n1NR
 # Cache the data to improve performance
 @st.cache_data
 def load_data():
-    """Load open and closed tickets from Google Sheets."""
     try:
         open_tickets = pd.read_csv(open_tickets_url)
         closed_tickets = pd.read_csv(closed_tickets_url)
 
-        # Ensure ticket numbers are strings without commas
         open_tickets["Request Num"] = open_tickets["Request Num"].astype(str).str.replace(",", "")
         closed_tickets["Request Num"] = closed_tickets["Request Num"].astype(str).str.replace(",", "")
 
@@ -27,9 +25,8 @@ def load_data():
 # Load the data
 open_tickets, closed_tickets = load_data()
 
-# Function to plot tickets on a map
+# Plot tickets on a map
 def plot_tickets_on_map(tickets):
-    """Plot all relevant tickets on a map."""
     m = folium.Map(location=[38.9717, -95.2353], zoom_start=12)
     for _, ticket in tickets.iterrows():
         try:
@@ -49,11 +46,10 @@ def plot_tickets_on_map(tickets):
             st.warning(f"Skipping ticket with invalid coordinates.")
     return m
 
-# Admin Dashboard with Ticket List, Map View, and Search Bar
+# Admin Dashboard
 def admin_dashboard():
     st.title("Admin Dashboard")
 
-    # Tabs for different views
     tab1, tab2, tab3 = st.tabs(["Ticket List", "Map View", "Search"])
 
     with tab1:
@@ -83,25 +79,23 @@ def locator_dashboard(username):
     locator_tickets = open_tickets[open_tickets["Assigned Name"] == username]
     completed_tickets = closed_tickets[closed_tickets["Completed By"] == username]
     st.title(f"Locator Dashboard - {username}")
-    st.write("Tickets assigned to or completed by you.")
     st.dataframe(pd.concat([locator_tickets, completed_tickets]))
 
 # Contractor Dashboard
 def contractor_dashboard(username):
     contractor_tickets = open_tickets[open_tickets["Excavator"] == username]
     st.title(f"Contractor Dashboard - {username}")
-    st.write("Tickets associated with your organization.")
     st.dataframe(contractor_tickets)
 
 # Logout Functionality
 def logout():
-    st.session_state.clear()
+    for key in st.session_state.keys():
+        del st.session_state[key]
     st.experimental_rerun()
 
 # Login Page
 def login():
     st.title("Login")
-
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
 
@@ -117,10 +111,8 @@ def login():
         else:
             st.error("Invalid credentials")
 
-    # Add a Logout Button
     if "role" in st.session_state:
-        if st.button("Logout"):
-            logout()
+        st.sidebar.button("Logout", on_click=logout)
 
 # Main App Flow
 if "role" not in st.session_state:
