@@ -7,7 +7,7 @@ from streamlit_folium import folium_static
 open_tickets_url = "https://docs.google.com/spreadsheets/d/1a1YSAMCFsUJn-PBSKlcIiKgGjvZaz7hqXBuQtvBF0Y/export?format=csv"
 closed_tickets_url = "https://docs.google.com/spreadsheets/d/1Sa7qXR2oWtvYf9n1NRrSoI6EFWp31s7hqXBuQtvBF0Y/export?format=csv"
 
-# Initialize message storage
+# Initialize message storage in session state
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
 
@@ -18,7 +18,6 @@ def load_data():
         open_tickets = pd.read_csv(open_tickets_url)
         closed_tickets = pd.read_csv(closed_tickets_url)
 
-        # Clean ticket numbers
         open_tickets["RequestNum"] = open_tickets["RequestNum"].astype(str).str.replace(",", "")
         closed_tickets["RequestNum"] = closed_tickets["RequestNum"].astype(str).str.replace(",", "")
 
@@ -48,17 +47,17 @@ def plot_tickets_on_map(tickets):
     return m
 
 def search_tickets(tickets, date_column, start_date, end_date):
-    """Filter tickets by date range."""
+    """Filter tickets by date range with consistent timezone handling."""
     try:
-        # Ensure date column is in datetime format
-        tickets[date_column] = pd.to_datetime(tickets[date_column], errors='coerce')
+        # Ensure the date column is in datetime format and remove timezone
+        tickets[date_column] = pd.to_datetime(tickets[date_column], errors='coerce').dt.tz_localize(None)
 
-        # Remove invalid date rows
+        # Drop rows with invalid dates (NaT)
         tickets = tickets.dropna(subset=[date_column])
 
-        # Convert start and end dates to datetime (no timezone)
-        start_date = pd.to_datetime(start_date).replace(tzinfo=None)
-        end_date = pd.to_datetime(end_date).replace(tzinfo=None)
+        # Convert start and end dates to datetime and remove timezone
+        start_date = pd.to_datetime(start_date).tz_localize(None)
+        end_date = pd.to_datetime(end_date).tz_localize(None)
 
         # Apply date filtering
         return tickets[(tickets[date_column] >= start_date) & (tickets[date_column] <= end_date)]
@@ -93,7 +92,7 @@ def send_message(ticket_num, sender, message, attachments):
     })
 
 def ticket_dashboard(tickets, role, key_prefix):
-    """Display tickets with list and map view, and messaging."""
+    """Display tickets with list, map view, and messaging."""
     start_date = st.date_input("Start Date", key=f"{key_prefix}_start")
     end_date = st.date_input("End Date", key=f"{key_prefix}_end")
     filtered_tickets = search_tickets(tickets, "Work to Begin Date", start_date, end_date)
