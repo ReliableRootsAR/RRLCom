@@ -83,6 +83,13 @@ def contractor_dashboard(username):
 # Login Page
 def login():
     st.title("Login")
+
+    # Display available usernames for testing (Remove this in production)
+    st.write("### Available Usernames (For Testing)")
+    st.write("Admins: admin")
+    st.write("Locators:", open_tickets["Assigned To"].unique())
+    st.write("Contractors:", open_tickets["Excavator"].unique())
+
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
 
