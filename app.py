@@ -7,6 +7,10 @@ from streamlit_folium import folium_static
 open_tickets_url = "https://docs.google.com/spreadsheets/d/1a1YSAMCFsUJn-PBSKlcIiKgGjvZaz7hqZXXI_jWbUVc/export?format=csv"
 closed_tickets_url = "https://docs.google.com/spreadsheets/d/1Sa7qXR2oWtvYf9n1NRrSoI6EFWp31s7hqXBuQtvBF0Y/export?format=csv"
 
+# Initialize message storage
+if "messages" not in st.session_state:
+    st.session_state["messages"] = []
+
 @st.cache_data
 def load_data():
     """Load open and closed tickets from Google Sheets."""
@@ -31,49 +35,37 @@ def plot_tickets_on_map(tickets):
         try:
             latitude = float(ticket.get("Latitude", 0))
             longitude = float(ticket.get("Longitude", 0))
-            address = ticket.get("Address", "Not Available")
             request_num = ticket.get("RequestNum", "Unknown")
-            excavator = ticket.get("Excavator", "Unknown")
-            status = ticket.get("Status", "Unknown")
 
             folium.Marker(
                 location=[latitude, longitude],
-                popup=(
-                    f"<b>RequestNum:</b> {request_num}<br>"
-                    f"<b>Address:</b> {address}<br>"
-                    f"<b>Excavator:</b> {excavator}<br>"
-                    f"<b>Status:</b> {status}"
-                ),
+                popup=f"<b>RequestNum:</b> {request_num}",
                 tooltip=request_num
             ).add_to(m)
         except ValueError:
             st.warning("Skipping ticket with invalid coordinates.")
     return m
 
-def search_tickets(tickets, date_column, start_date, end_date, contractor):
-    """Filter tickets by the date column and contractor."""
-    # Ensure consistent datetime format with UTC timezone
-    tickets[date_column] = pd.to_datetime(tickets[date_column], errors='coerce').dt.tz_localize(None)
+def send_message(ticket_num, sender, message):
+    """Add a message to the session state."""
+    st.session_state["messages"].append({
+        "ticket_num": ticket_num,
+        "sender": sender,
+        "message": message,
+        "status": "Open"
+    })
 
-    # Drop rows with invalid dates (NaT)
-    tickets = tickets.dropna(subset=[date_column])
+def view_messages(ticket_num):
+    """Display messages for a specific ticket."""
+    messages = [msg for msg in st.session_state["messages"] if msg["ticket_num"] == ticket_num]
+    for msg in messages:
+        st.write(f"**{msg['sender']}**: {msg['message']} ({msg['status']})")
 
-    # Convert input dates to datetime format (no timezone)
-    start_date = pd.to_datetime(start_date).replace(tzinfo=None)
-    end_date = pd.to_datetime(end_date).replace(tzinfo=None)
-
-    # Filter by date range
-    if start_date and end_date:
-        tickets = tickets[
-            (tickets[date_column] >= start_date) &
-            (tickets[date_column] <= end_date)
-        ]
-
-    # Filter by contractor name if provided
-    if contractor:
-        tickets = tickets[tickets["Excavator"].str.contains(contractor, case=False, na=False)]
-
-    return tickets
+def close_message(ticket_num):
+    """Mark all messages for a ticket as closed."""
+    for msg in st.session_state["messages"]:
+        if msg["ticket_num"] == ticket_num:
+            msg["status"] = "Closed"
 
 def admin_dashboard():
     st.title("Admin Dashboard")
@@ -81,38 +73,18 @@ def admin_dashboard():
     tab1, tab2 = st.tabs(["Open Tickets", "Closed Tickets"])
 
     with tab1:
-        start_date = st.date_input("Start Date")
-        end_date = st.date_input("End Date")
-        contractor = st.text_input("Contractor Name")
-
-        filtered_open_tickets = search_tickets(open_tickets, "Work to Begin Date", start_date, end_date, contractor)
-        st.subheader(f"Total Open Tickets: {len(filtered_open_tickets)}")
-
-        subtabs = st.tabs(["List View", "Map View"])
-
-        with subtabs[0]:
-            st.dataframe(filtered_open_tickets)
-
-        with subtabs[1]:
-            open_map = plot_tickets_on_map(filtered_open_tickets)
-            folium_static(open_map, width=800, height=400)
+        st.subheader("Open Tickets")
+        open_map = plot_tickets_on_map(open_tickets)
+        folium_static(open_map, width=800, height=400)
 
     with tab2:
-        start_date = st.date_input("Start Date", key="closed_start")
-        end_date = st.date_input("End Date", key="closed_end")
-        contractor = st.text_input("Contractor Name", key="closed_contractor")
+        st.subheader("Closed Tickets")
+        closed_map = plot_tickets_on_map(closed_tickets)
+        folium_static(closed_map, width=800, height=400)
 
-        filtered_closed_tickets = search_tickets(closed_tickets, "Date Completed", start_date, end_date, contractor)
-        st.subheader(f"Total Closed Tickets: {len(filtered_closed_tickets)}")
-
-        subtabs = st.tabs(["List View", "Map View"])
-
-        with subtabs[0]:
-            st.dataframe(filtered_closed_tickets)
-
-        with subtabs[1]:
-            closed_map = plot_tickets_on_map(filtered_closed_tickets)
-            folium_static(closed_map, width=800, height=400)
+    st.subheader("Messages")
+    for msg in st.session_state["messages"]:
+        st.write(f"**Ticket {msg['ticket_num']}**: {msg['message']} - {msg['status']}")
 
 def locator_dashboard(username):
     st.title(f"Locator Dashboard - {username}")
@@ -120,40 +92,27 @@ def locator_dashboard(username):
     tab1, tab2 = st.tabs(["Open Tickets", "Closed Tickets"])
 
     with tab1:
-        start_date = st.date_input("Start Date")
-        end_date = st.date_input("End Date")
-        contractor = st.text_input("Contractor Name")
-
         locator_open_tickets = open_tickets[open_tickets["Assigned Name"] == username]
-        filtered_open_tickets = search_tickets(locator_open_tickets, "Work to Begin Date", start_date, end_date, contractor)
-        st.subheader(f"Total Open Tickets: {len(filtered_open_tickets)}")
-
-        subtabs = st.tabs(["List View", "Map View"])
-
-        with subtabs[0]:
-            st.dataframe(filtered_open_tickets)
-
-        with subtabs[1]:
-            open_map = plot_tickets_on_map(filtered_open_tickets)
-            folium_static(open_map, width=800, height=400)
+        st.subheader("Open Tickets")
+        open_map = plot_tickets_on_map(locator_open_tickets)
+        folium_static(open_map, width=800, height=400)
 
     with tab2:
-        start_date = st.date_input("Start Date", key="locator_closed_start")
-        end_date = st.date_input("End Date", key="locator_closed_end")
-        contractor = st.text_input("Contractor Name", key="locator_closed_contractor")
-
         locator_closed_tickets = closed_tickets[closed_tickets["Completed By"] == username]
-        filtered_closed_tickets = search_tickets(locator_closed_tickets, "Date Completed", start_date, end_date, contractor)
-        st.subheader(f"Total Closed Tickets: {len(filtered_closed_tickets)}")
+        st.subheader("Closed Tickets")
+        closed_map = plot_tickets_on_map(locator_closed_tickets)
+        folium_static(closed_map, width=800, height=400)
 
-        subtabs = st.tabs(["List View", "Map View"])
+    st.subheader("Messages")
+    ticket_num = st.text_input("Enter Ticket Number to View Messages")
+    if ticket_num:
+        view_messages(ticket_num)
 
-        with subtabs[0]:
-            st.dataframe(filtered_closed_tickets)
-
-        with subtabs[1]:
-            closed_map = plot_tickets_on_map(filtered_closed_tickets)
-            folium_static(closed_map, width=800, height=400)
+    st.subheader("Send a Message")
+    message = st.text_area("Enter your message")
+    if st.button("Send"):
+        send_message(ticket_num, username, message)
+        st.success("Message sent!")
 
 def logout():
     st.session_state.clear()
@@ -169,9 +128,6 @@ def login():
             st.session_state["role"] = "Admin"
         elif username in open_tickets["Assigned Name"].unique():
             st.session_state["role"] = "Locator"
-            st.session_state["username"] = username
-        elif username in open_tickets["Excavator"].unique():
-            st.session_state["role"] = "Contractor"
             st.session_state["username"] = username
         else:
             st.error("Invalid credentials")
@@ -193,5 +149,3 @@ else:
         admin_dashboard()
     elif role == "Locator":
         locator_dashboard(username)
-    elif role == "Contractor":
-        contractor_dashboard(username)
