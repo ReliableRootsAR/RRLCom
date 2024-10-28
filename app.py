@@ -66,6 +66,22 @@ def plot_all_tickets(tickets, selected_ticket=None):
 
     return m
 
+# Function to handle message sending
+def message_section(selected_ticket):
+    """Send a message tied to the selected ticket."""
+    st.subheader(f"Send a Message for Ticket: {selected_ticket}")
+    message = st.text_area("Enter your message:")
+    attachments = st.file_uploader("Attach files:", accept_multiple_files=True)
+
+    if st.button("Send Message"):
+        if message or attachments:
+            st.success(f"Message sent for Ticket {selected_ticket}.")
+            if attachments:
+                for file in attachments:
+                    st.write(f"Attached: {file.name}")
+        else:
+            st.warning("Please enter a message or attach a file.")
+
 # Streamlit App UI
 st.title("RRLCom - Ticket Management System")
 
@@ -77,28 +93,25 @@ menu_option = st.sidebar.selectbox(
 )
 
 if menu_option == "List View":
-    # List View: Display all tickets in a scrollable table
+    # List View: Display all tickets with detailed information
     st.header("All Tickets")
-    st.dataframe(data)
+    st.write(data)  # Display the entire dataset for now
 
 elif menu_option == "Map/List View":
     # Map/List View: Ticket List on top, Map on bottom
     st.header("Map/List View")
 
-    # Top: Ticket List (Radio Buttons for Selection)
+    # Top: Ticket List (With More Info)
     with st.container():
         st.subheader("Ticket List")
+        selected_ticket_row = st.dataframe(data[["RequestNum", "Excavator", "TypeOfWork"]], height=300)
 
-        # Radio buttons to select a ticket
-        selected_ticket = st.radio(
-            "Select a Ticket:",
-            options=data["RequestNum"],
-            index=0 if st.session_state["selected_ticket"] is None else data["RequestNum"].tolist().index(st.session_state["selected_ticket"]),
-            key="ticket_radio"
-        )
+        # Extract the selected ticket's ID if clicked
+        if st.session_state["selected_ticket"] is None and not data.empty:
+            st.session_state["selected_ticket"] = data["RequestNum"].iloc[0]
 
-        # Update session state with the selected ticket
-        st.session_state["selected_ticket"] = selected_ticket
+    # Get the selected ticket from session state
+    selected_ticket = st.session_state["selected_ticket"]
 
     # Bottom: Map of Tickets
     with st.container():
@@ -108,15 +121,7 @@ elif menu_option == "Map/List View":
 
     # Message Section
     if selected_ticket:
-        st.subheader(f"Send a Message for Ticket: {selected_ticket}")
-        message = st.text_area("Enter your message:")
-        attachments = st.file_uploader("Attach files:", accept_multiple_files=True)
-
-        if st.button("Send Message"):
-            st.success(f"Message sent for Ticket {selected_ticket}.")
-            if attachments:
-                for file in attachments:
-                    st.write(f"Attached: {file.name}")
+        message_section(selected_ticket)
 
 elif menu_option == "Search Ticket":
     # Search Ticket Section
