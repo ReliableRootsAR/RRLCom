@@ -193,30 +193,4 @@ def messages_dashboard(username):
             st.write(f"Ticket Number: {ticket_num}")
             for msg in row['Messages']:
                 if msg['status'] == 'Open':
-                    st.write(f"Author: {msg['author']}, Content: {msg['content']}")
-
-    with tab2:
-        closed_messages = messages_df[messages_df['Messages'].apply(lambda x: any(msg['status'] == 'Closed' for msg in x))]
-        st.subheader(f"Total Closed Messages: {len(closed_messages)}")
-        for _, row in closed_messages.iterrows():
-            ticket_num = row['TicketNum']
-            st.write(f"Ticket Number: {ticket_num}")
-            for msg in row['Messages']:
-                if msg['status'] == 'Closed':
-                    st.write(f"Author: {msg['author']}, Content: {msg['content']}")
-
-def logout():
-    st.session_state.clear()
-    st.session_state["logged_out"] = True
-
-def login():
-    st.title("Login")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-
-    if st.button("Login"):
-        if username == "admin" and password == "admin123":
-            st.session_state["role"] = "Admin"
-            st.session_state["username"] = username
-        elif username in open_tickets["Assigned Name"].unique():
-            st.session_state["
+                    st.write(f"Author: {
