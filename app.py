@@ -90,16 +90,16 @@ def admin_dashboard():
 
     # Sidebar with logout
     st.sidebar.header("Admin Menu")
-    st.sidebar.button("Logout", on_click=logout)
+    st.sidebar.button("Logout", on_click=logout, key="admin_logout")
 
     # Tabs for open and closed tickets
     tab1, tab2 = st.tabs(["Open Tickets", "Closed Tickets"])
 
     with tab1:
         st.subheader("Open Tickets")
-        start_date = st.date_input("Start Date")
-        end_date = st.date_input("End Date")
-        contractor = st.text_input("Contractor Name")
+        start_date = st.date_input("Start Date", key="admin_open_start")
+        end_date = st.date_input("End Date", key="admin_open_end")
+        contractor = st.text_input("Contractor Name", key="admin_open_contractor")
 
         filtered_open_tickets = search_tickets(open_tickets, "Work to Begin Date", start_date, end_date, contractor)
         st.subheader(f"Total Open Tickets: {len(filtered_open_tickets)}")
@@ -115,9 +115,9 @@ def admin_dashboard():
 
     with tab2:
         st.subheader("Closed Tickets")
-        start_date = st.date_input("Start Date", key="closed_start")
-        end_date = st.date_input("End Date", key="closed_end")
-        contractor = st.text_input("Contractor Name", key="closed_contractor")
+        start_date = st.date_input("Start Date", key="admin_closed_start")
+        end_date = st.date_input("End Date", key="admin_closed_end")
+        contractor = st.text_input("Contractor Name", key="admin_closed_contractor")
 
         filtered_closed_tickets = search_tickets(closed_tickets, "Date Completed", start_date, end_date, contractor)
         st.subheader(f"Total Closed Tickets: {len(filtered_closed_tickets)}")
@@ -135,15 +135,15 @@ def locator_dashboard(username):
     st.title(f"Locator Dashboard - {username}")
 
     st.sidebar.header("Locator Menu")
-    st.sidebar.button("Logout", on_click=logout)
+    st.sidebar.button("Logout", on_click=logout, key="locator_logout")
 
     tab1, tab2 = st.tabs(["Open Tickets", "Closed Tickets"])
 
     with tab1:
         st.subheader("Open Tickets")
-        start_date = st.date_input("Start Date")
-        end_date = st.date_input("End Date")
-        contractor = st.text_input("Contractor Name")
+        start_date = st.date_input("Start Date", key="locator_open_start")
+        end_date = st.date_input("End Date", key="locator_open_end")
+        contractor = st.text_input("Contractor Name", key="locator_open_contractor")
 
         locator_open_tickets = open_tickets[open_tickets["Assigned Name"] == username]
         filtered_open_tickets = search_tickets(locator_open_tickets, "Work to Begin Date", start_date, end_date, contractor)
@@ -181,55 +181,10 @@ def messages_dashboard(username):
     st.title(f"Messages Dashboard - {username}")
 
     st.sidebar.header("Messages Menu")
-    st.sidebar.button("Logout", on_click=logout)
+    st.sidebar.button("Logout", on_click=logout, key="messages_logout")
 
     tab1, tab2 = st.tabs(["Open Messages", "Closed Messages"])
 
     with tab1:
         st.subheader("Open Messages")
-        open_messages = messages_df[messages_df['Messages'].apply(lambda x: any(msg['status'] == 'Open' for msg in x))]
-        st.dataframe(open_messages)
-
-    with tab2:
-        st.subheader("Closed Messages")
-        closed_messages = messages_df[messages_df['Messages'].apply(lambda x: all(msg['status'] == 'Closed' for msg in x))]
-        st.dataframe(closed_messages)
-
-def logout():
-    st.session_state.clear()
-    st.session_state["logged_out"] = True
-
-def login():
-    st.title("Login")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-
-    if st.button("Login"):
-        if username == "admin" and password == "admin123":
-            st.session_state["role"] = "Admin"
-        elif username in open_tickets["Assigned Name"].unique():
-            st.session_state["role"] = "Locator"
-            st.session_state["username"] = username
-        elif username in open_tickets["Excavator"].unique():
-            st.session_state["role"] = "Contractor"
-            st.session_state["username"] = username
-        else:
-            st.error("Invalid credentials")
-
-    if "role" in st.session_state:
-        st.sidebar.button("Logout", on_click=logout)
-
-if "role" not in st.session_state or st.session_state.get("logged_out", False):
-    if "logged_out" in st.session_state:
-        del st.session_state["logged_out"]
-    login()
-else:
-    role = st.session_state["role"]
-    username = st.session_state.get("username", "")
-
-    st.sidebar.button("Logout", on_click=logout)
-
-    if role == "Admin":
-        admin_dashboard()
-    elif role == "Locator":
-        locator
+        open_messages = messages_df[messages_df['Messages'].apply(lambda x: any(msg['status'] == 'Open' for msg in
