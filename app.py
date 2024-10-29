@@ -183,4 +183,8 @@ def messages_dashboard(username):
     st.sidebar.header("Messages Menu")
     st.sidebar.button("Logout", on_click=logout, key="messages_logout")
 
-    tab1, tab2 = st.tabs(["Open Messages", "Closed
+    tab1, tab2 = st.tabs(["Open Messages", "Closed Messages"])
+
+    with tab1:
+        st.subheader("Open Messages")
+        open_messages = messages_df[messages_df['Messages'].apply(lambda x: any(msg['status'] == 'Open' for msg in
