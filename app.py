@@ -217,4 +217,6 @@ def login():
     if st.button("Login"):
         if username == "admin" and password == "admin123":
             st.session_state["role"] = "Admin"
+            st.session_state["username"] = username
         elif username in open_tickets["Assigned Name"].unique():
+            st.session_state["
