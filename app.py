@@ -110,6 +110,11 @@ def admin_dashboard():
         with subtabs[0]:
             st.dataframe(filtered_open_tickets)
 
+            # Option to create a message from the ticket list
+            ticket_to_message = st.selectbox("Select a ticket to create a message", filtered_open_tickets["RequestNum"], key="admin_ticket_message")
+            if st.button("Create Message", key="create_message_admin"):
+                new_message(ticket_to_message, "admin")
+
         with subtabs[1]:
             open_map = plot_tickets_on_map(filtered_open_tickets)
             folium_static(open_map, width=800, height=400)
@@ -157,6 +162,11 @@ def locator_dashboard(username):
 
         with subtabs[0]:
             st.dataframe(filtered_open_tickets)
+
+            # Option to create a message from the ticket list
+            ticket_to_message = st.selectbox("Select a ticket to create a message", filtered_open_tickets["RequestNum"], key="locator_ticket_message")
+            if st.button("Create Message", key="create_message_locator"):
+                new_message(ticket_to_message, username)
 
         with subtabs[1]:
             open_map = plot_tickets_on_map(filtered_open_tickets)
@@ -222,6 +232,19 @@ def messages_dashboard(username=None):
                         st.write("Replies:")
                         for reply in msg['replies']:
                             st.write(f"- {reply['author']} ({reply['timestamp']}): {reply['content']}")
+
+def new_message(ticket_num, author):
+    """Create a new message associated with a ticket."""
+    new_content = st.text_area("Enter your message content:", key=f"new_message_content_{ticket_num}")
+    if st.button("Submit Message", key=f"submit_message_{ticket_num}"):
+        new_msg = {"author": author, "content": new_content, "status": "Open", "replies": []}
+        idx = messages_df.index[messages_df["TicketNum"] == ticket_num].tolist()
+        if idx:
+            messages_df.at[idx[0], "Messages"].append(new_msg)
+        else:
+            messages_df = messages_df.append({"TicketNum": ticket_num, "Messages": [new_msg]}, ignore_index=True)
+        st.success("Message created successfully!")
+        st.experimental_rerun()
 
 def logout():
     st.session_state.clear()
