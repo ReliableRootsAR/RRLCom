@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import folium
 from streamlit_folium import folium_static
+import datetime
 
 # URLs for Open and Closed Tickets Sheets
 open_tickets_url = "https://docs.google.com/spreadsheets/d/1a1YSAMCFsUJn-PBSKlcIiKgGjvZaz7hqZXXI_jWbUVc/export?format=csv"
@@ -201,12 +202,14 @@ def messages_dashboard(username=None):
                     if username and username != msg['author']:
                         reply = st.text_area(f"Reply to Ticket {ticket_num}", key=f"reply_{ticket_num}")
                         if st.button(f"Send Reply - Ticket {ticket_num}", key=f"send_reply_{ticket_num}"):
-                            msg['replies'].append({"author": username, "content": reply})
+                            msg['replies'].append({"author": username, "content": reply, "timestamp": datetime.datetime.now()})
+                            st.experimental_rerun()
                     if st.button(f"Close Message - Ticket {ticket_num}", key=f"close_{ticket_num}"):
                         msg['status'] = 'Closed'
+                        st.experimental_rerun()
 
     with tab2:
-        closed_messages = messages_df[messages_df['Messages'].apply(lambda x: all(msg['status'] == 'Closed' for msg in x))]
+        closed_messages = messages_df[messages_df['Messages'].apply(lambda x: any(msg['status'] == 'Closed' for msg in x))]
         st.subheader(f"Total Closed Messages: {len(closed_messages)}")
         for _, row in closed_messages.iterrows():
             ticket_num = row['TicketNum']
@@ -218,7 +221,7 @@ def messages_dashboard(username=None):
                     if msg['replies']:
                         st.write("Replies:")
                         for reply in msg['replies']:
-                            st.write(f"- {reply['author']}: {reply['content']}")
+                            st.write(f"- {reply['author']} ({reply['timestamp']}): {reply['content']}")
 
 def logout():
     st.session_state.clear()
