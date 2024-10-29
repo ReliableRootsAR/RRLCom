@@ -242,7 +242,9 @@ def new_message(ticket_num, author):
         if idx:
             messages_df.at[idx[0], "Messages"].append(new_msg)
         else:
-            messages_df = messages_df.append({"TicketNum": ticket_num, "Messages": [new_msg]}, ignore_index=True)
+            new_row = pd.DataFrame({"TicketNum": [ticket_num], "Messages": [[new_msg]]})
+            global messages_df
+            messages_df = pd.concat([messages_df, new_row], ignore_index=True)
         st.success("Message created successfully!")
         st.experimental_rerun()
 
