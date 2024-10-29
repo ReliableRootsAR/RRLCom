@@ -187,4 +187,49 @@ def messages_dashboard(username):
 
     with tab1:
         st.subheader("Open Messages")
-        open_messages = messages_df[messages_df['Messages'].apply(lambda x: any(msg['status']
+        open_messages = messages_df[messages_df['Messages'].apply(lambda x: any(msg['status'] == 'Open' for msg in x))]
+        st.dataframe(open_messages)
+
+    with tab2:
+        st.subheader("Closed Messages")
+        closed_messages = messages_df[messages_df['Messages'].apply(lambda x: all(msg['status'] == 'Closed' for msg in x))]
+        st.dataframe(closed_messages)
+
+def logout():
+    st.session_state.clear()
+    st.session_state["logged_out"] = True
+
+def login():
+    st.title("Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        if username == "admin" and password == "admin123":
+            st.session_state["role"] = "Admin"
+        elif username in open_tickets["Assigned Name"].unique():
+            st.session_state["role"] = "Locator"
+            st.session_state["username"] = username
+        elif username in open_tickets["Excavator"].unique():
+            st.session_state["role"] = "Contractor"
+            st.session_state["username"] = username
+        else:
+            st.error("Invalid credentials")
+
+    if "role" in st.session_state:
+        st.sidebar.button("Logout", on_click=logout)
+
+if "role" not in st.session_state or st.session_state.get("logged_out", False):
+    if "logged_out" in st.session_state:
+        del st.session_state["logged_out"]
+    login()
+else:
+    role = st.session_state["role"]
+    username = st.session_state.get("username", "")
+
+    st.sidebar.button("Logout", on_click=logout)
+
+    if role == "Admin":
+        admin_dashboard()
+    elif role == "Locator":
+        locator
