@@ -93,7 +93,7 @@ def admin_dashboard():
     st.sidebar.button("Logout", on_click=logout, key="admin_logout")
 
     # Tabs for open and closed tickets
-    tab1, tab2 = st.tabs(["Open Tickets", "Closed Tickets"])
+    tab1, tab2, tab3 = st.tabs(["Open Tickets", "Closed Tickets", "Messages"])
 
     with tab1:
         st.subheader("Open Tickets")
@@ -131,13 +131,16 @@ def admin_dashboard():
             closed_map = plot_tickets_on_map(filtered_closed_tickets)
             folium_static(closed_map, width=800, height=400)
 
+    with tab3:
+        messages_dashboard()
+
 def locator_dashboard(username):
     st.title(f"Locator Dashboard - {username}")
 
     st.sidebar.header("Locator Menu")
     st.sidebar.button("Logout", on_click=logout, key="locator_logout")
 
-    tab1, tab2 = st.tabs(["Open Tickets", "Closed Tickets"])
+    tab1, tab2, tab3 = st.tabs(["Open Tickets", "Closed Tickets", "Messages"])
 
     with tab1:
         st.subheader("Open Tickets")
@@ -177,11 +180,11 @@ def locator_dashboard(username):
             closed_map = plot_tickets_on_map(filtered_closed_tickets)
             folium_static(closed_map, width=800, height=400)
 
-def messages_dashboard(username):
-    st.title(f"Messages Dashboard - {username}")
+    with tab3:
+        messages_dashboard()
 
-    st.sidebar.header("Messages Menu")
-    st.sidebar.button("Logout", on_click=logout, key="messages_logout")
+def messages_dashboard():
+    st.subheader("Messages")
 
     tab1, tab2 = st.tabs(["Open Messages", "Closed Messages"])
 
@@ -193,6 +196,19 @@ def messages_dashboard(username):
             st.write(f"Ticket Number: {ticket_num}")
             for msg in row['Messages']:
                 if msg['status'] == 'Open':
+                    st.write(f"Author: {msg['author']}")
+                    st.write(f"Content: {msg['content']}")
+                    if st.button(f"Close Message - Ticket {ticket_num}"):
+                        msg['status'] = 'Closed'
+
+    with tab2:
+        closed_messages = messages_df[messages_df['Messages'].apply(lambda x: all(msg['status'] == 'Closed' for msg in x))]
+        st.subheader(f"Total Closed Messages: {len(closed_messages)}")
+        for _, row in closed_messages.iterrows():
+            ticket_num = row['TicketNum']
+            st.write(f"Ticket Number: {ticket_num}")
+            for msg in row['Messages']:
+                if msg['status'] == 'Closed':
                     st.write(f"Author: {msg['author']}")
                     st.write(f"Content: {msg['content']}")
 
@@ -235,4 +251,4 @@ else:
     elif role == "Locator":
         locator_dashboard(username)
     elif role == "Contractor":
-        messages_dashboard(username)
+        messages_dashboard()
