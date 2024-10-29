@@ -28,8 +28,8 @@ open_tickets, closed_tickets = load_data()
 data = {
     "TicketNum": ["1234", "5678"],
     "Messages": [
-        [{"author": "admin", "content": "Message 1", "status": "Open"}],
-        [{"author": "locator", "content": "Message 2", "status": "Open"}]
+        [{"author": "admin", "content": "Message 1", "status": "Open", "replies": []}],
+        [{"author": "locator", "content": "Message 2", "status": "Open", "replies": []}]
     ]
 }
 messages_df = pd.DataFrame(data)
@@ -181,9 +181,9 @@ def locator_dashboard(username):
             folium_static(closed_map, width=800, height=400)
 
     with tab3:
-        messages_dashboard()
+        messages_dashboard(username=username)
 
-def messages_dashboard():
+def messages_dashboard(username=None):
     st.subheader("Messages")
 
     tab1, tab2 = st.tabs(["Open Messages", "Closed Messages"])
@@ -198,7 +198,11 @@ def messages_dashboard():
                 if msg['status'] == 'Open':
                     st.write(f"Author: {msg['author']}")
                     st.write(f"Content: {msg['content']}")
-                    if st.button(f"Close Message - Ticket {ticket_num}"):
+                    if username and username != msg['author']:
+                        reply = st.text_area(f"Reply to Ticket {ticket_num}", key=f"reply_{ticket_num}")
+                        if st.button(f"Send Reply - Ticket {ticket_num}", key=f"send_reply_{ticket_num}"):
+                            msg['replies'].append({"author": username, "content": reply})
+                    if st.button(f"Close Message - Ticket {ticket_num}", key=f"close_{ticket_num}"):
                         msg['status'] = 'Closed'
 
     with tab2:
@@ -211,6 +215,10 @@ def messages_dashboard():
                 if msg['status'] == 'Closed':
                     st.write(f"Author: {msg['author']}")
                     st.write(f"Content: {msg['content']}")
+                    if msg['replies']:
+                        st.write("Replies:")
+                        for reply in msg['replies']:
+                            st.write(f"- {reply['author']}: {reply['content']}")
 
 def logout():
     st.session_state.clear()
@@ -251,4 +259,4 @@ else:
     elif role == "Locator":
         locator_dashboard(username)
     elif role == "Contractor":
-        messages_dashboard()
+        messages_dashboard(username)
