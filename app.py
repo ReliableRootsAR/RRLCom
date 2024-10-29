@@ -187,4 +187,5 @@ def messages_dashboard(username):
 
     with tab1:
         st.subheader("Open Messages")
-        open_messages = messages_df[messages_df['Messages'].apply(lambda x: any(msg['status'] == 'Open' for msg in
+        open_messages = messages_df[messages_df['Messages'].apply(lambda x: any(msg['status'] == 'Open' for msg in x))]
+        st.dataframe(open_messages)
